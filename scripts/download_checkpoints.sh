@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 MIRROR="${MIRROR:-}"
 GH="https://github.com"
 [ -n "$MIRROR" ] && GH="${MIRROR}/https://github.com"
-SELF_REPO="${SELF_REPO:-https://github.com/ASHDUSK/RE-Self}"   # ← 发布时替换为你的仓库地址
+SELF_REPO="${SELF_REPO:-https://github.com/ASHDUSK/TrustBridge-}"   # ← 发布时替换为你的仓库地址
 
 download() {  # url out size
   local url="$1" out="$2" size="${3:-}"
