@@ -1,0 +1,31 @@
+# ---- 大文件 / 本地产物（绝不入库）----
+checkpoints/*.ckpt
+release_assets/
+data/
+runs/
+dist/
+wheels/
+outputs/
+*.nii
+*.nii.gz
+*.tar
+*.zip
+*.whl
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---- 系统/编辑器 ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---- 训练/日志临时 ----
+logs/
+*.log
+lightning_logs/
