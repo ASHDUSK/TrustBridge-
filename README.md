@@ -48,6 +48,11 @@ SelfRDB 论文在其讨论部分明确把"扩散桥的不确定性评估"留作�
    （手动等价命令：`copy /b MedBridgeStudio_Demo.zip.001+MedBridgeStudio_Demo.zip.002+MedBridgeStudio_Demo.zip.003 MedBridgeStudio_Demo.zip`）；
 3. 解压完整 zip → 双击文件夹内的 `启动.bat` → 浏览器自动打开 `http://127.0.0.1:7860`。
 
+> **首次启动需要等待 30–90 秒**（正在加载 PyTorch 与模型权重），别因为黑窗口没反应就把它关掉。
+> 如果浏览器没有自动打开、或你看到"无法连接"，**不要重启**：等 1–2 分钟后手动打开
+> `http://127.0.0.1:7860` 即可。也可以改用 Releases 页面的 `start_app.bat`——它会在检测到
+> 本地端口就绪后才打开浏览器，启动体验更稳。
+
 合并后完整包 SHA-256：`4519525b879ed626fd33f8b098fd8b6e0c8648459dbcfe455c443c891a7789ad`
 
 **运行要求**：Windows 10/11 64 位；建议 NVIDIA GPU ≥ 6 GB 显存（无 GPU 亦可运行，单图约 1–5 分钟）；解压后约 6.4 GB。
