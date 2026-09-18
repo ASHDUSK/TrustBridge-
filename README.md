@@ -26,11 +26,39 @@ SelfRDB 论文在其讨论部分明确把"扩散桥的不确定性评估"留作�
 | ③ | Trust Score 与质控门控 | ①②融合为信任图 → 0-100 分 → PASS/REVIEW/REJECT + PNG/JSON 报告 | 可忽略 |
 | ④ | 自适应递归 + 步跳加速 | 快/平衡/精细三档预设，平衡耗时与可信度评估 | 工程优化 |
 
-## 30 秒上手
+## 零安装演示包（推荐普通用户）
+
+不想配环境？直接下载**解压即用**的离线包：内置便携 Python 运行时 + 全部依赖 + 模型权重 + 示例切片，
+无需安装 Python、无需联网，内容与本仓库一致。
+
+完整包 **4.21 GiB**，因 GitHub 单个附件上限 2 GiB，拆为 3 卷。在
+[Releases](https://github.com/ASHDUSK/TrustBridge-/releases/latest) 页面下载这几个文件：
+
+| 文件 | 大小 | SHA-256 |
+|---|---|---|
+| `MedBridgeStudio_Demo.zip.001` | 1716.6 MiB | `389feb9398b9d429ac1caa54c01860265e97ce60d9dbc496c0fdd5b98a16d4e1` |
+| `MedBridgeStudio_Demo.zip.002` | 1716.6 MiB | `e40ae7d6dea0a4cc3c4ee806decfe10d2d134946e0285ab8c5b068cf5b3d9445` |
+| `MedBridgeStudio_Demo.zip.003` | 876.1 MiB | `161432953fe20cccd862ed723abbab2876adfa1ec59addb7265d486454ed87aa` |
+| `merge_parts.bat` | 合并工具（1 KB） | — |
+
+**三步使用**
+
+1. 把上面 4 个文件下载到**同一个文件夹**；
+2. 双击 `merge_parts.bat` 自动合并出完整的 `MedBridgeStudio_Demo.zip`
+   （手动等价命令：`copy /b MedBridgeStudio_Demo.zip.001+MedBridgeStudio_Demo.zip.002+MedBridgeStudio_Demo.zip.003 MedBridgeStudio_Demo.zip`）；
+3. 解压完整 zip → 双击文件夹内的 `启动.bat` → 浏览器自动打开 `http://127.0.0.1:7860`。
+
+合并后完整包 SHA-256：`4519525b879ed626fd33f8b098fd8b6e0c8648459dbcfe455c443c891a7789ad`
+
+**运行要求**：Windows 10/11 64 位；建议 NVIDIA GPU ≥ 6 GB 显存（无 GPU 亦可运行，单图约 1–5 分钟）；解压后约 6.4 GB。
+
+> 想自己从源码打包离线包？运行 `python scripts/build_demo_package.py`。
+
+## 源码运行（开发者）
 
 ```bash
-git clone https://github.com/<YOUR_USERNAME>/<YOUR_REPO>.git
-cd <YOUR_REPO>
+git clone https://github.com/ASHDUSK/TrustBridge-.git
+cd TrustBridge-
 
 # 1) 环境（Windows + NVIDIA GPU；Linux 同理）
 pip install torch --index-url https://download.pytorch.org/whl/cu126
@@ -46,8 +74,7 @@ python app/app.py                             # 浏览器打开 http://127.0.0.1
 应用里点任意**示例切片** → 选任务 → 选质量档位 → "开始翻译"，即可得到：
 翻译结果、信任热图、低信任叠加标注、Trust Score 与可下载的质控报告（PNG+JSON）。
 
-> 想要"解压即用、零安装"的离线版（含便携 Python 运行时，6.4GB）？
-> 运行 `python scripts/build_demo_package.py` 自行打包，或见 Release 中的网盘链接。
+> 不想装环境？见上面的 [零安装演示包](#零安装演示包推荐普通用户)，下载 3 个分卷 + `merge_parts.bat` 即可开箱使用。
 
 ## 实测结果（IXI 测试集，官方口径评估）
 
