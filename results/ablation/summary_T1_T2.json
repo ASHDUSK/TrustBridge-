@@ -1,0 +1,360 @@
+{
+  "full_n4": {
+    "spearman": {
+      "mean": -0.8945,
+      "std": 0.0159
+    },
+    "auroc": {
+      "mean": 0.9001,
+      "std": 0.0255
+    },
+    "dpsnr10": {
+      "mean": 2.7181,
+      "std": 0.6233
+    },
+    "dpsnr20": {
+      "mean": 5.3538,
+      "std": 1.2173
+    },
+    "dpsnr30": {
+      "mean": 8.9049,
+      "std": 2.8236
+    },
+    "elapsed_s": {
+      "mean": 3.0996,
+      "std": 0.6836
+    },
+    "fwd_count": {
+      "mean": 40.0,
+      "std": 0.0
+    },
+    "psnr": {
+      "mean": 20.661,
+      "std": 1.1513
+    }
+  },
+  "fusion_w1.0": {
+    "spearman": {
+      "mean": -0.8787,
+      "std": 0.0164
+    },
+    "auroc": {
+      "mean": 0.8859,
+      "std": 0.0269
+    },
+    "dpsnr10": {
+      "mean": 2.3924,
+      "std": 0.5963
+    },
+    "dpsnr20": {
+      "mean": 4.7283,
+      "std": 1.1051
+    },
+    "dpsnr30": {
+      "mean": 7.9379,
+      "std": 2.4636
+    },
+    "elapsed_s": {
+      "mean": 3.0996,
+      "std": 0.6836
+    },
+    "fwd_count": {
+      "mean": 40.0,
+      "std": 0.0
+    }
+  },
+  "fusion_w0.7": {
+    "spearman": {
+      "mean": -0.8909,
+      "std": 0.016
+    },
+    "auroc": {
+      "mean": 0.8975,
+      "std": 0.0259
+    },
+    "dpsnr10": {
+      "mean": 2.6656,
+      "std": 0.6212
+    },
+    "dpsnr20": {
+      "mean": 5.2475,
+      "std": 1.1887
+    },
+    "dpsnr30": {
+      "mean": 8.7328,
+      "std": 2.7775
+    },
+    "elapsed_s": {
+      "mean": 3.0996,
+      "std": 0.6836
+    },
+    "fwd_count": {
+      "mean": 40.0,
+      "std": 0.0
+    }
+  },
+  "fusion_w0.5": {
+    "spearman": {
+      "mean": -0.898,
+      "std": 0.0159
+    },
+    "auroc": {
+      "mean": 0.9021,
+      "std": 0.0252
+    },
+    "dpsnr10": {
+      "mean": 2.7569,
+      "std": 0.631
+    },
+    "dpsnr20": {
+      "mean": 5.4391,
+      "std": 1.2422
+    },
+    "dpsnr30": {
+      "mean": 9.1076,
+      "std": 2.9026
+    },
+    "elapsed_s": {
+      "mean": 3.0996,
+      "std": 0.6836
+    },
+    "fwd_count": {
+      "mean": 40.0,
+      "std": 0.0
+    }
+  },
+  "fusion_w0.3": {
+    "spearman": {
+      "mean": -0.9047,
+      "std": 0.0161
+    },
+    "auroc": {
+      "mean": 0.904,
+      "std": 0.0245
+    },
+    "dpsnr10": {
+      "mean": 2.7286,
+      "std": 0.6137
+    },
+    "dpsnr20": {
+      "mean": 5.4722,
+      "std": 1.1941
+    },
+    "dpsnr30": {
+      "mean": 9.3547,
+      "std": 2.9399
+    },
+    "elapsed_s": {
+      "mean": 3.0996,
+      "std": 0.6836
+    },
+    "fwd_count": {
+      "mean": 40.0,
+      "std": 0.0
+    }
+  },
+  "fusion_w0.0": {
+    "spearman": {
+      "mean": -0.9105,
+      "std": 0.0166
+    },
+    "auroc": {
+      "mean": 0.8975,
+      "std": 0.024
+    },
+    "dpsnr10": {
+      "mean": 2.4207,
+      "std": 0.508
+    },
+    "dpsnr20": {
+      "mean": 4.8999,
+      "std": 1.0599
+    },
+    "dpsnr30": {
+      "mean": 8.596,
+      "std": 2.6231
+    },
+    "elapsed_s": {
+      "mean": 3.0996,
+      "std": 0.6836
+    },
+    "fwd_count": {
+      "mean": 40.0,
+      "std": 0.0
+    }
+  },
+  "rcrf_n1": {
+    "spearman": {
+      "mean": -0.8696,
+      "std": 0.0167
+    },
+    "auroc": {
+      "mean": 0.8796,
+      "std": 0.0271
+    },
+    "dpsnr10": {
+      "mean": 2.4014,
+      "std": 0.5649
+    },
+    "dpsnr20": {
+      "mean": 4.5606,
+      "std": 1.0678
+    },
+    "dpsnr30": {
+      "mean": 7.3326,
+      "std": 2.1157
+    },
+    "elapsed_s": {
+      "mean": 1.5254,
+      "std": 0.3892
+    },
+    "fwd_count": {
+      "mean": 20.0,
+      "std": 0.0
+    },
+    "psnr": {
+      "mean": 20.3477,
+      "std": 1.1826
+    }
+  },
+  "rcrf_n4": {
+    "spearman": {
+      "mean": -0.8787,
+      "std": 0.0164
+    },
+    "auroc": {
+      "mean": 0.8859,
+      "std": 0.0269
+    },
+    "dpsnr10": {
+      "mean": 2.3924,
+      "std": 0.5963
+    },
+    "dpsnr20": {
+      "mean": 4.7283,
+      "std": 1.1051
+    },
+    "dpsnr30": {
+      "mean": 7.9379,
+      "std": 2.4636
+    },
+    "elapsed_s": {
+      "mean": 3.0996,
+      "std": 0.6836
+    },
+    "fwd_count": {
+      "mean": 40.0,
+      "std": 0.0
+    }
+  },
+  "unc_n4": {
+    "spearman": {
+      "mean": -0.9105,
+      "std": 0.0166
+    },
+    "auroc": {
+      "mean": 0.8975,
+      "std": 0.024
+    },
+    "dpsnr10": {
+      "mean": 2.4207,
+      "std": 0.508
+    },
+    "dpsnr20": {
+      "mean": 4.8999,
+      "std": 1.0599
+    },
+    "dpsnr30": {
+      "mean": 8.596,
+      "std": 2.6231
+    },
+    "elapsed_s": {
+      "mean": 3.0996,
+      "std": 0.6836
+    },
+    "fwd_count": {
+      "mean": 40.0,
+      "std": 0.0
+    }
+  },
+  "random": {
+    "spearman": {
+      "mean": 0.0025,
+      "std": 0.0076
+    },
+    "auroc": {
+      "mean": 0.498,
+      "std": 0.0079
+    },
+    "dpsnr10": {
+      "mean": -0.0041,
+      "std": 0.0393
+    },
+    "dpsnr20": {
+      "mean": -0.0154,
+      "std": 0.0634
+    },
+    "dpsnr30": {
+      "mean": -0.0185,
+      "std": 0.0968
+    },
+    "elapsed_s": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "fwd_count": {
+      "mean": 0.0,
+      "std": 0.0
+    }
+  },
+  "full_skip2": {
+    "spearman": {
+      "mean": -0.8887,
+      "std": 0.0162
+    },
+    "auroc": {
+      "mean": 0.9,
+      "std": 0.0251
+    },
+    "dpsnr10": {
+      "mean": 2.8392,
+      "std": 0.6726
+    },
+    "dpsnr20": {
+      "mean": 5.4936,
+      "std": 1.2341
+    },
+    "dpsnr30": {
+      "mean": 8.903,
+      "std": 2.7235
+    },
+    "elapsed_s": {
+      "mean": 1.8899,
+      "std": 0.3738
+    },
+    "fwd_count": {
+      "mean": 24.0,
+      "std": 0.0
+    },
+    "psnr": {
+      "mean": 20.5275,
+      "std": 1.1319
+    }
+  },
+  "meta": {
+    "task": "T1->T2",
+    "ckpt": "checkpoints/self_t1t2.ckpt",
+    "split": "test",
+    "n_slices": 60,
+    "seed": 2026,
+    "w_grid": [
+      1.0,
+      0.7,
+      0.5,
+      0.3,
+      0.0
+    ],
+    "started": "2026-09-18 23:27:02",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  }
+}
