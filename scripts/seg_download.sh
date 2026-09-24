@@ -1,5 +1,5 @@
 #!/bin/bash
-# 分段并行下载器 v2：支持重定向(-L)、逐段校验、跨运行幂等续传
+# 分段并行下载器 v3：支持重定向(-L)、逐段校验、跨运行幂等续传、段内断点续传（抗断流）
 # 用法: seg_download.sh <URL> <TOTAL_SIZE> <OUT_FILE> [NSEG]
 set -u
 URL="$1"; TOTAL="$2"; OUT="$3"; NSEG="${4:-16}"
@@ -15,24 +15,19 @@ download_part() {
   local i=$1 start=$2 end=$3
   local want=$(( end - start + 1 ))
   local part="$TMP/p$(printf '%04d' $i)"
-  for try in $(seq 1 8); do
+  for try in $(seq 1 30); do
     local got=0
-    [ -f "$part" ] && got=$(stat -c%s "$part")
-    if [ "$got" -eq "$want" ]; then return 0; fi
-    if [ "$got" -gt "$want" ]; then rm -f "$part"; got=0; fi
-    local code exitc
-    code=$(curl -sL -H "Range: bytes=${start}-${end}" --max-time 600 \
-      --speed-time 30 --speed-limit 1024 -o "$part.tmp" -w "%{http_code}" "$URL")
-    exitc=$?
-    if [ $exitc -eq 0 ] && [ -f "$part.tmp" ]; then
-      local sz; sz=$(stat -c%s "$part.tmp")
-      if [ "$sz" -eq "$want" ]; then mv "$part.tmp" "$part"; return 0; fi
-      # 服务器忽略Range返回整文件时 sz > want；重定向页则 sz < want
-      rm -f "$part.tmp"
-    fi
-    sleep $(( try * 2 ))
+    [ -f "$part" ] && mv "$part" "$part.tmp"
+    [ -f "$part.tmp" ] && got=$(stat -c%s "$part.tmp")
+    if [ "$got" -eq "$want" ]; then mv "$part.tmp" "$part"; return 0; fi
+    if [ "$got" -gt "$want" ]; then rm -f "$part.tmp"; got=0; fi
+    # 段内断点续传：只请求剩余字节并追加（连接中断不丢进度）
+    curl -sL --ssl-no-revoke -H "Range: bytes=$(( start + got ))-${end}" --max-time 900 \
+      --speed-time 30 --speed-limit 512 -o "$part.tmp.new" "$URL"
+    if [ -f "$part.tmp.new" ]; then cat "$part.tmp.new" >> "$part.tmp"; rm -f "$part.tmp.new"; fi
+    sleep $(( try > 10 ? 10 : try ))
   done
-  echo "  part $i FAILED (curl exit=$exitc http=$code)" >&2
+  echo "  part $i FAILED" >&2
   return 1
 }
 

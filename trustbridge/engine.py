@@ -31,6 +31,12 @@ TASKS = {
     # 自训练模型（128x128，本仓库全流程可复现）
     "T2->T1*": ("T2 → T1（自训练·128px）", "T2", "T1", "self_t2t1.ckpt"),
     "T1->T2*": ("T1 → T2（自训练·128px）", "T1", "T2", "self_t1t2.ckpt"),
+    # BRATS 脑肿瘤（官方预训练 256²）
+    "BRATS_T2->T1":    ("BRATS T2 → T1（脑肿瘤MRI）", "T2", "T1", "brats_t2_t1.ckpt"),
+    "BRATS_FLAIR->T2": ("BRATS FLAIR → T2（脑肿瘤MRI）", "FLAIR", "T2", "brats_flair_t2.ckpt"),
+    # 盆腔 MRI→CT（官方预训练 256²）
+    "CT_T1->CT": ("盆腔 T1 → CT（sCT）", "T1", "CT", "ct_t1_ct.ckpt"),
+    "CT_T2->CT": ("盆腔 T2 → CT（sCT）", "T2", "CT", "ct_t2_ct.ckpt"),
 }
 
 
@@ -67,15 +73,14 @@ class BridgeEngine:
                    if k.startswith("generator.")}
         self.generator.load_state_dict(g_state, strict=True)
 
-        # 扩散调度（确定性，由超参重建）
+        # 扩散调度：ckpt 内保存的 buffer 是训练时真实调度，直接采用；
+        # 未保存的 buffer 退回超参重建值（个别权重如 ct_t2_ct 的重建值与保存值不符，
+        # 一律以 ckpt 保存值为准）
         self.diffusion = DiffusionBridge(**diff_params).to(self.device)
-        # 用 ckpt 内保存的 buffer 校验调度一致性
         d_state = {k[len("diffusion."):]: v for k, v in blob["state_dict"].items()
                    if k.startswith("diffusion.")}
-        for name, v in d_state.items():
-            ours = getattr(self.diffusion, name)
-            assert torch.allclose(ours.cpu(), v.float(), atol=1e-5), \
-                f"扩散调度 buffer 不匹配: {name}"
+        if d_state:
+            self.diffusion.load_state_dict(d_state, strict=False)
 
         self.n_steps = int(diff_params.get("n_steps", 10))
         self.max_recursions = int(diff_params.get("n_recursions", 2))
