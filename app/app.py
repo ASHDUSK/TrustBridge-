@@ -47,7 +47,7 @@ def get_engine(task_id: str) -> BridgeEngine:
 
 PRESETS = {  # (显示名, n_ensemble, step_skip, 说明)
     "快速 ⚡": (1, 2, "单次采样·步跳2，秒级出图"),
-    "平衡 ⚖": (4, 1, "4次集成·逐步采样，推荐"),
+    "平衡 ⚖": (4, 2, "4次集成·步跳2（消融实测：质量持平，耗时省40%），推荐"),
     "精细 🔬": (8, 1, "8次集成·逐步采样，最可靠的信任图"),
 }
 
@@ -93,6 +93,16 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
     def cb(f, msg):
         progress(f, desc=msg)
 
+    # 输入模态门控（脑任务启用；CT 任务盆腔门控不可靠，跳过——见 docs/08 附录 C）
+    gate_result = None
+    if not task_id.startswith("CT_"):
+        from trustbridge.gate import check as gate_check, gate_for_task
+        gate_result = gate_check(img, src_mod, gate_path=gate_for_task(task_id))
+        if gate_result is not None and not gate_result.get("ok", True):
+            gr.Warning(f"⚠ 输入模态校验未通过：该图像特征更接近 "
+                       f"{'T2' if gate_result.get('prob_t2', 0) > 0.5 else 'T1'} 加权像，"
+                       f"与所选任务的源模态（{src_mod}）不符。结果可能不可靠，请核对任务选择。")
+
     out = translate_single(eng, img, n_ensemble=n_ens, step_skip=skip,
                            seed=int(seed), gt01=gt01, progress_cb=cb)
     res, pred = out["result"], out["pred01"]
@@ -103,9 +113,13 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
     rpt.compose_report_png(img, pred, res, png_path, gt01=gt01,
                            low_thresh=float(low_thresh),
                            source_mod=src_mod, target_mod=tgt_mod)
+    extra = {"source_modality": src_mod, "target_modality": tgt_mod}
+    if gate_result is not None:
+        extra["input_gate"] = ("PASS" if gate_result.get("ok", True) else "FLAGGED")
+        extra["input_gate_prob_t2"] = gate_result.get("prob_t2")
     rpt.compose_report_json(file.name if hasattr(file, "name") else "input",
                             display, res, json_path, metrics=out["metrics"],
-                            extra={"source_modality": src_mod, "target_modality": tgt_mod})
+                            extra=extra)
 
     gallery = [
         (img, "源图像"),
@@ -267,4 +281,4 @@ def build_ui():
 if __name__ == "__main__":
     demo = build_ui()
     demo.queue(default_concurrency_limit=1)  # 单 GPU 串行
-    demo.launch(server_name="127.0.0.1", server_port=7860, show_error=True)
+    demo.launch(server_name="127.0.0.1", server_port=7860, show_error=True, inbrowser=True)

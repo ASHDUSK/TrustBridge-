@@ -1,0 +1,70 @@
+{
+  "date": "2026-09-27T00:46:12",
+  "train": {
+    "train_n": 1090,
+    "train_acc": 1.0,
+    "coef_path": "D:\\MedTranslateProject\\data\\modality_gate.npz"
+  },
+  "suites": {
+    "A_ixi_test_T1_as_T1src(匹配)": {
+      "n": 300,
+      "match_rate": 0.99,
+      "flagged": 3,
+      "mean_prob_t2": 0.0111
+    },
+    "B_ixi_test_T1_as_T2src(错配)": {
+      "n": 300,
+      "match_rate": 0.01,
+      "flagged": 297,
+      "mean_prob_t2": 0.0111
+    },
+    "C_ixi_test_T2_as_T2src(匹配)": {
+      "n": 300,
+      "match_rate": 1.0,
+      "flagged": 0,
+      "mean_prob_t2": 0.9999
+    },
+    "D_ixi_test_T2_as_T1src(错配)": {
+      "n": 300,
+      "match_rate": 0.0,
+      "flagged": 300,
+      "mean_prob_t2": 0.9999
+    },
+    "E_synthradA_T1w_as_T1src(匹配·脑门控)": {
+      "n": 150,
+      "match_rate": 1.0,
+      "flagged": 0,
+      "mean_prob_t2": 0.0354
+    },
+    "F_synthradC_T2w_as_T2src(匹配·脑门控)": {
+      "n": 150,
+      "match_rate": 0.2733,
+      "flagged": 109,
+      "mean_prob_t2": 0.3163
+    },
+    "H_synthradA_T1w_盆腔门控(匹配)": {
+      "n": 90,
+      "match_rate": 0.2222,
+      "flagged": 70,
+      "mean_prob_t2": 0.7365
+    },
+    "I_synthradC_T2w_盆腔门控(匹配)": {
+      "n": 90,
+      "match_rate": 0.9667,
+      "flagged": 3,
+      "mean_prob_t2": 0.9468
+    },
+    "J_synthradA_T1w_喂T2源(错配·盆腔门控)": {
+      "n": 90,
+      "match_rate": 0.7778,
+      "flagged": 20,
+      "mean_prob_t2": 0.7365
+    },
+    "G_fets_T2like_as_T2src(匹配)": {
+      "n": 75,
+      "match_rate": 1.0,
+      "flagged": 0,
+      "mean_prob_t2": NaN
+    }
+  }
+}

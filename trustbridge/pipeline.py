@@ -23,11 +23,18 @@ def translate_single(engine, img01: np.ndarray, n_ensemble: int = 4,
     res = sampler.sample(y, n_ensemble=n_ensemble, step_skip=step_skip,
                          seed=seed, progress_cb=progress_cb)
     pred01 = engine.postprocess(res.pred, img01.shape)
-    # 信任/不确定性/残差图与输出对齐（输入被缩放时模型分辨率 != 原分辨率）
+    # 信任类图与输出对齐：输入小于模型尺寸(被补零)→中心裁剪；大于→放大回原尺寸
     if res.trust_map.shape != img01.shape:
-        from skimage.transform import resize
-        def _rs(m):
-            return resize(m, img01.shape, order=1, preserve_range=True).astype(np.float32)
+        S = res.trust_map.shape[0]
+        H, W = img01.shape
+        if H <= S and W <= S:
+            pt, pl = (S - H) // 2, (S - W) // 2
+            def _rs(m):
+                return np.ascontiguousarray(m[pt:pt + H, pl:pl + W])
+        else:
+            from skimage.transform import resize
+            def _rs(m):
+                return resize(m, img01.shape, order=1, preserve_range=True).astype(np.float32)
         res.rcrf_map, res.unc_map, res.trust_map = _rs(res.rcrf_map), _rs(res.unc_map), _rs(res.trust_map)
     metrics = None
     if gt01 is not None and gt01.shape == pred01.shape:
