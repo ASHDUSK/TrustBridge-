@@ -1,0 +1,17 @@
+{
+  "task": "T1->T2",
+  "n_slices": 30,
+  "seed": "checkpoints/self_t1t2.ckpt",
+  "uniform": {
+    "psnr": 20.73,
+    "ssim": 80.84,
+    "inblk_psnr": null
+  },
+  "repaint": {
+    "psnr": 20.83,
+    "ssim": 81.11,
+    "inblk_psnr": null
+  },
+  "repaint_gain_psnr": 0.1,
+  "blk_spearman_mean": 0.9341
+}
