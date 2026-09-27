@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-27T20:17:37",
+  "task": "CT_T2->CT",
+  "ckpt": "ct_t2_ct.ckpt",
+  "ckpt_sha256": "ddf2172caf7a34abadf79e6232bf675b77244eb100ecee54e8e568f401c520cf",
+  "git_commit": "",
+  "manifest": "data/synthrad_slices_128/manifest_ct_c.csv",
+  "src_col": "mr_path",
+  "gt_col": "ct_path",
+  "n_ensemble": 4,
+  "seed": 123,
+  "n_slices": 80,
+  "smoke": false,
+  "protocol": "validate_trust.py 同口径(官方mean_norm PSNR/SSIM) + 7行消融"
+}

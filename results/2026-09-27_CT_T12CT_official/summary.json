@@ -1,0 +1,69 @@
+{
+  "n_slices": 80,
+  "task": "CT_T1->CT",
+  "psnr": {
+    "mean": 21.237,
+    "std": 2.422
+  },
+  "ssim": {
+    "mean": 64.3233,
+    "std": 5.9785
+  },
+  "ncc": {
+    "mean": 0.9357,
+    "std": 0.0131
+  },
+  "pixel_spearman_trust_vs_error": -0.6729,
+  "pixel_pearson_trust_vs_error": -0.6169,
+  "auroc_fused": {
+    "mean": 0.9154,
+    "std": 0.0306
+  },
+  "auroc_rcrf": {
+    "mean": 0.9191,
+    "std": 0.0351
+  },
+  "auroc_unc": {
+    "mean": 0.8479,
+    "std": 0.0183
+  },
+  "auroc_gradient": {
+    "mean": 0.872,
+    "std": 0.0158
+  },
+  "gain_random_db": {
+    "mean": -0.0711,
+    "std": 0.1721
+  },
+  "gain_gradient_db": {
+    "mean": 3.5621,
+    "std": 1.1223
+  },
+  "gain_input_diff_db": {
+    "mean": -0.4024,
+    "std": 2.0841
+  },
+  "gain_rcrf_only_db": {
+    "mean": 4.9102,
+    "std": 1.6387
+  },
+  "gain_unc_only_db": {
+    "mean": 1.608,
+    "std": 1.2995
+  },
+  "gain_fused_db": {
+    "mean": 4.8019,
+    "std": 1.6414
+  },
+  "gain_oracle_db": {
+    "mean": 13.5121,
+    "std": 2.6232
+  },
+  "image_level_spearman_score_vs_psnr": -0.1066,
+  "qc_counts": {
+    "PASS": 80,
+    "REVIEW": 0,
+    "REJECT": 0
+  },
+  "sec_per_slice": 5.7
+}

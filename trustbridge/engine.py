@@ -37,6 +37,9 @@ TASKS = {
     # 盆腔 MRI→CT（官方预训练 256²）
     "CT_T1->CT": ("盆腔 T1 → CT（sCT）", "T1", "CT", "ct_t1_ct.ckpt"),
     "CT_T2->CT": ("盆腔 T2 → CT（sCT）", "T2", "CT", "ct_t2_ct.ckpt"),
+    # 盆腔 CT 自训练（SynthRAD，患者级划分，128²）
+    "CT_T1->CT_S": ("盆腔 T1 → CT（自训）", "T1", "CT", "self_ct_t12ct.ckpt"),
+    "CT_T2->CT_S": ("盆腔 T2 → CT（自训）", "T2", "CT", "self_ct_t22ct.ckpt"),
 }
 
 
