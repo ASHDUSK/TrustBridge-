@@ -161,10 +161,13 @@ class TrustSampler:
                 r = 0
                 res_last = None
                 for r in range(1, self.eng.max_recursions + 1):
-                    x0_rp1 = self.eng.generator(
-                        torch.cat((x_t, y_rep), dim=1),
-                        torch.full((bs,), t, device=dev, dtype=torch.long),
-                        x_r=x0_r)
+                    with torch.autocast("cuda", dtype=torch.bfloat16,
+                                        enabled=getattr(self.eng, "use_bf16", False)):
+                        x0_rp1 = self.eng.generator(
+                            torch.cat((x_t, y_rep), dim=1),
+                            torch.full((bs,), t, device=dev, dtype=torch.long),
+                            x_r=x0_r)
+                    x0_rp1 = x0_rp1.float()
                     res_last = (x0_rp1 - x0_r).abs().mean(dim=1)   # [bs,H,W]
                     change = res_last.mean(dim=0).max().item()
                     if change < self.eng.consistency_threshold:
@@ -287,10 +290,13 @@ class AdaptiveTrustSampler(TrustSampler):
                 res_last = None
                 r = 0
                 for r in range(1, r_max + 1):
-                    x0_rp1 = self.eng.generator(
-                        torch.cat((x_t, y_rep), dim=1),
-                        torch.full((1,), t, device=dev, dtype=torch.long),
-                        x_r=x0_r)
+                    with torch.autocast("cuda", dtype=torch.bfloat16,
+                                        enabled=getattr(self.eng, "use_bf16", False)):
+                        x0_rp1 = self.eng.generator(
+                            torch.cat((x_t, y_rep), dim=1),
+                            torch.full((1,), t, device=dev, dtype=torch.long),
+                            x_r=x0_r)
+                    x0_rp1 = x0_rp1.float()
                     res_last = (x0_rp1 - x0_r).abs().mean(dim=1)      # [1,H,W]
                     block_res = self._block_pool(res_last[:, None], block)[:, 0]
                     if best_res is None:
@@ -347,8 +353,11 @@ class AdaptiveTrustSampler(TrustSampler):
                     tt = torch.full((1,), t, device=dev, dtype=torch.long)
                     x0_r = torch.zeros_like(x_t)
                     for _ in range(self.eng.max_recursions):
-                        x0_r = self.eng.generator(torch.cat((x_t, y_rep), dim=1), tt,
-                                                  x_r=x0_r)
+                        with torch.autocast("cuda", dtype=torch.bfloat16,
+                                            enabled=getattr(self.eng, "use_bf16", False)):
+                            x0_r = self.eng.generator(torch.cat((x_t, y_rep), dim=1), tt,
+                                                      x_r=x0_r)
+                        x0_r = x0_r.float()
                     x_t = self._q_posterior(tt, torch.full((1,), max(t - skip, 0),
                                         device=dev, dtype=torch.long), x_t, x0_r, y_rep)
                     if progress_cb:

@@ -16,6 +16,8 @@ sys.path.insert(0, ROOT)
 os.chdir(ROOT)
 
 import numpy as np
+import glob
+
 import gradio as gr
 
 from trustbridge.engine import BridgeEngine, TASKS
@@ -43,6 +45,31 @@ def get_engine(task_id: str) -> BridgeEngine:
     if task_id not in ENGINES:
         ENGINES[task_id] = BridgeEngine(task_id)
     return ENGINES[task_id]
+
+
+def list_history(limit=20):
+    """扫描 outputs/ 会话目录，返回最近的质量记录（新→旧）。"""
+    rows = []
+    if not os.path.isdir(OUT_DIR):
+        return rows
+    for d in sorted(glob.glob(os.path.join(OUT_DIR, "20*")), reverse=True)[:limit * 2]:
+        jf = os.path.join(d, "qc_report.json")
+        pf = os.path.join(d, "qc_report.png")
+        if not os.path.isfile(jf):
+            continue
+        try:
+            j = json.load(open(jf, encoding="utf-8"))
+            rows.append({"时间": os.path.basename(d)[:15].replace("_", " ", 1),
+                         "任务": j.get("task", "?"),
+                         "TrustScore": j.get("trust_score", "?"),
+                         "QC": j.get("qc_flag", "?"),
+                         "PSNR": (j.get("quality_metrics_official_protocol") or {}).get("psnr", "–"),
+                         "目录": d})
+        except Exception:
+            continue
+        if len(rows) >= limit:
+            break
+    return rows
 
 
 PRESETS = {  # (显示名, n_ensemble, step_skip, 说明)
@@ -112,7 +139,8 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
     json_path = os.path.join(sdir, "qc_report.json")
     rpt.compose_report_png(img, pred, res, png_path, gt01=gt01,
                            low_thresh=float(low_thresh),
-                           source_mod=src_mod, target_mod=tgt_mod)
+                           source_mod=src_mod, target_mod=tgt_mod,
+                           input_gate=gate_result)
     extra = {"source_modality": src_mod, "target_modality": tgt_mod}
     if gate_result is not None:
         extra["input_gate"] = ("PASS" if gate_result.get("ok", True) else "FLAGGED")
@@ -145,6 +173,22 @@ def run_volume(file, task_id, preset, progress=gr.Progress()):
 
     vol, ref = load_volume(path)
     t0 = time.time()
+
+    # 输入模态门控（取首个含体数据切片校验；CT 任务盆腔门控不可靠，跳过）
+    gate_result = None
+    gate_note = ""
+    if not task_id.startswith("CT_"):
+        from trustbridge.gate import check as gate_check, gate_for_task
+        body_slice = next((k for k in range(vol.shape[2])
+                           if (vol[:, :, k] > 0.02).mean() > 0.05), None)
+        if body_slice is not None:
+            gate_result = gate_check(vol[:, :, body_slice], src_mod,
+                                     gate_path=gate_for_task(task_id))
+            if gate_result is not None and not gate_result.get("ok", True):
+                gate_note = (f"⚠ **输入模态校验未通过**：该卷特征更接近 "
+                             f"{'T2' if gate_result.get('prob_t2', 0) > 0.5 else 'T1'} 加权像，"
+                             f"与任务源模态（{src_mod}）不符——结果可能不可靠。")
+                gr.Warning(gate_note)
 
     def cb(f, msg):
         progress(f, desc=msg)
@@ -182,8 +226,9 @@ def run_volume(file, task_id, preset, progress=gr.Progress()):
     score_path = os.path.join(sdir, "volume_trust_scores.png")
     fig2.savefig(score_path, dpi=130); plt.close(fig2)
 
-    summary = (f"共处理 {len(zs)} 个含脑切片 / 全卷 {vol.shape[2]} 层 · 耗时 {time.time()-t0:.0f}s · "
-               f"平均 Trust Score = {np.mean(scores):.1f} · 最低 {np.min(scores):.1f} (z={zs[int(np.argmin(scores))]})")
+    summary = (f"共处理 {len(zs)} 个含体切片 / 全卷 {vol.shape[2]} 层 · 耗时 {time.time()-t0:.0f}s · "
+               f"平均 Trust Score = {np.mean(scores):.1f} · 最低 {np.min(scores):.1f} (z={zs[int(np.argmin(scores))]})"
+               + (f"  |  {gate_note}" if gate_note else ""))
     return prev_path, score_path, summary, nii_path
 
 
@@ -226,8 +271,28 @@ def build_ui():
                                  file_types=["image", ".nii", ".gz", ".dcm"])
                     tasks_ok = available_tasks()
                     default_task = "T2->T1" if "T2->T1" in tasks_ok else tasks_ok[0]
-                    task = gr.Radio(tasks_ok, value=default_task,
+                    # 按数据集族分组：组下拉 + 组内 Radio
+                    import trustbridge.engine as _E
+                    _groups = {
+                        "脑 IXI（T1/T2/PD）": ["T1->T2", "T2->T1", "PD->T1", "T1->PD",
+                                               "T2->T1*", "T1->T2*"],
+                        "脑肿瘤 BRATS（T2/FLAIR）": ["BRATS_T2->T1", "BRATS_FLAIR->T2"],
+                        "盆腔 CT（SynthRAD）": ["CT_T1->CT", "CT_T2->CT",
+                                                "CT_T1->CT_S", "CT_T2->CT_S"],
+                    }
+                    _group_ok = {g: [t for t in ts if t in tasks_ok]
+                                 for g, ts in _groups.items()}
+                    _group_ok = {g: ts for g, ts in _group_ok.items() if ts}
+                    _default_group = next(g for g, ts in _group_ok.items()
+                                          if default_task in ts)
+                    group_dd = gr.Dropdown(list(_group_ok), value=_default_group,
+                                           label="数据集")
+                    task = gr.Radio(_group_ok[_default_group], value=default_task,
                                     label="翻译任务")
+                    def _on_group(g):
+                        return gr.Radio(_group_ok[g],
+                                        value=_group_ok[g][0] if _group_ok[g] else None)
+                    group_dd.change(_on_group, inputs=group_dd, outputs=task)
                     preset = gr.Radio(list(PRESETS.keys()), value="平衡 ⚖",
                                       label="质量档位")
                     with gr.Row():
@@ -261,7 +326,24 @@ def build_ui():
                 with gr.Column():
                     vinp = gr.File(label="上传整卷 .nii / .nii.gz",
                                    file_types=[".nii", ".gz"])
-                    vtask = gr.Radio(available_tasks(), value="T2->T1" if "T2->T1" in available_tasks() else available_tasks()[0], label="翻译任务")
+                    vtasks_ok = available_tasks()
+                    _vgroups = {
+                        "脑 IXI（T1/T2/PD）": ["T1->T2", "T2->T1", "PD->T1", "T1->PD",
+                                               "T2->T1*", "T1->T2*"],
+                        "脑肿瘤 BRATS（T2/FLAIR）": ["BRATS_T2->T1", "BRATS_FLAIR->T2"],
+                        "盆腔 CT（SynthRAD）": ["CT_T1->CT", "CT_T2->CT",
+                                                "CT_T1->CT_S", "CT_T2->CT_S"],
+                    }
+                    _vgroups = {g: [t for t in ts if t in vtasks_ok]
+                                for g, ts in _vgroups.items()}
+                    _vgroups = {g: ts for g, ts in _vgroups.items() if ts}
+                    _vdef_g = next(g for g, ts in _vgroups.items() if "T2->T1" in ts)
+                    vgroup_dd = gr.Dropdown(list(_vgroups), value=_vdef_g, label="数据集")
+                    vtask = gr.Radio(_vgroups[_vdef_g], value="T2->T1", label="翻译任务")
+                    def _on_vgroup(g):
+                        return gr.Radio(_vgroups[g],
+                                        value=_vgroups[g][0] if _vgroups[g] else None)
+                    vgroup_dd.change(_on_vgroup, inputs=vgroup_dd, outputs=vtask)
                     vpreset = gr.Radio(list(PRESETS.keys()), value="快速 ⚡",
                                        label="质量档位（整卷建议快速）")
                     vbtn = gr.Button("🚀 翻译整卷", variant="primary", size="lg")
@@ -272,6 +354,23 @@ def build_ui():
                     vnii = gr.File(label="翻译后 NIfTI 下载")
             vbtn.click(run_volume, inputs=[vinp, vtask, vpreset],
                        outputs=[vprev, vscore, vsum, vnii])
+
+        with gr.Tab("🕓 历史记录"):
+            hist_btn = gr.Button("🔄 刷新历史", size="sm")
+            hist_df = gr.Dataframe(headers=["时间", "任务", "TrustScore", "QC", "PSNR", "目录"],
+                                   interactive=False, wrap=True)
+            hist_gallery = gr.Gallery(label="最近的质控报告", columns=4, height="300",
+                                      object_fit="contain")
+
+            def refresh_history():
+                rows = list_history()
+                pics = [(os.path.join(r["目录"], "qc_report.png"), f"{r['任务']} · {r['TrustScore']}")
+                        for r in rows
+                        if os.path.isfile(os.path.join(r["目录"], "qc_report.png"))][:12]
+                return rows, pics
+
+            hist_btn.click(refresh_history, outputs=[hist_df, hist_gallery])
+            demo.load(refresh_history, outputs=[hist_df, hist_gallery])
 
         with gr.Tab("📖 关于 / 创新点"):
             gr.Markdown(ABOUT)

@@ -34,7 +34,10 @@ class RepaintSampler(TrustSampler):
             tt = torch.full((1,), t, device=dev, dtype=torch.long)
             x0_r = torch.zeros_like(x)
             for _ in range(self.eng.max_recursions):
-                x0_rp1 = self.eng.generator(torch.cat((x, y), dim=1), tt, x_r=x0_r)
+                with torch.autocast("cuda", dtype=torch.bfloat16,
+                                    enabled=getattr(self.eng, "use_bf16", False)):
+                    x0_rp1 = self.eng.generator(torch.cat((x, y), dim=1), tt, x_r=x0_r)
+                x0_rp1 = x0_rp1.float()
                 x0_r = x0_rp1
             if t > 1:
                 res_sum += float((x0_r - torch.zeros_like(x0_r)).abs().mean())
@@ -82,7 +85,10 @@ class RepaintSampler(TrustSampler):
                 tt = torch.full((1,), t, device=dev, dtype=torch.long)
                 x0_r = torch.zeros_like(x_t)
                 for _ in range(self.eng.max_recursions):
-                    x0_r = self.eng.generator(torch.cat((x_t, y), dim=1), tt, x_r=x0_r)
+                    with torch.autocast("cuda", dtype=torch.bfloat16,
+                                        enabled=getattr(self.eng, "use_bf16", False)):
+                        x0_r = self.eng.generator(torch.cat((x_t, y), dim=1), tt, x_r=x0_r)
+                    x0_r = x0_r.float()
                 x_t = self._q_posterior(tt, torch.full((1,), max(t - skip, 0),
                                         device=dev, dtype=torch.long), x_t, x0_r, y)
                 if progress_cb:
@@ -121,7 +127,10 @@ class RepaintSampler(TrustSampler):
                 tt = torch.full((1,), t, device=dev, dtype=torch.long)
                 x0_r = torch.zeros_like(x_t)
                 for _ in range(self.eng.max_recursions):
-                    x0_r = self.eng.generator(torch.cat((x_t, y), dim=1), tt, x_r=x0_r)
+                    with torch.autocast("cuda", dtype=torch.bfloat16,
+                                        enabled=getattr(self.eng, "use_bf16", False)):
+                        x0_r = self.eng.generator(torch.cat((x_t, y), dim=1), tt, x_r=x0_r)
+                    x0_r = x0_r.float()
                 x_t = self._q_posterior(tt, torch.full((1,), max(t - skip, 0),
                                         device=dev, dtype=torch.long), x_t, x0_r, y)
                 if progress_cb:
