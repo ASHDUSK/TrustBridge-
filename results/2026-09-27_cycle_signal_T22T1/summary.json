@@ -1,0 +1,37 @@
+{
+  "task": "T2->T1",
+  "date": "2026-09-27T22:14:43",
+  "n": {
+    "val": 100,
+    "test": 100
+  },
+  "schemes": {},
+  "w3_ccr_weight_val": 0.1,
+  "schemes_test": {
+    "fixed2": {
+      "spearman": 0.7899,
+      "auroc": 0.8182,
+      "gain20": 2.808
+    },
+    "ccr_only": {
+      "spearman": 0.42,
+      "auroc": 0.5026,
+      "gain20": 0.213
+    },
+    "fusion3_eq": {
+      "spearman": 0.7574,
+      "auroc": 0.7714,
+      "gain20": 2.067
+    },
+    "fusion3_val": {
+      "spearman": 0.7889,
+      "auroc": 0.8139,
+      "gain20": 2.734
+    },
+    "oracle": {
+      "spearman": 1.0,
+      "auroc": 1.0,
+      "gain20": 11.113
+    }
+  }
+}

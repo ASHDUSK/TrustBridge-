@@ -63,12 +63,10 @@ def main():
 
     # 主任务 T2->T1：正向 A=self_t2t1，回译 B=self_t1t2
     back_task = "T1->T2" if args.task == "T2->T1" else "T2->T1"
-    ckpt_main = args.ckpt_main or os.path.join(
-        ROOT, "checkpoints", TASKS[args.task][3].replace("ixi_", "self_")
-        if not TASKS[args.task][3].startswith("self_") else TASKS[args.task][3])
-    ckpt_back = args.ckpt_back or os.path.join(
-        ROOT, "checkpoints", TASKS[back_task][3].replace("ixi_", "self_")
-        if not TASKS[back_task][3].startswith("self_") else TASKS[back_task][3])
+    star = args.task + "*"
+    star_back = back_task + "*"
+    ckpt_main = args.ckpt_main or os.path.join(ROOT, "checkpoints", TASKS[star][3])
+    ckpt_back = args.ckpt_back or os.path.join(ROOT, "checkpoints", TASKS[star_back][3])
 
     man = list(csv.DictReader(open(os.path.join(ROOT, "data", "ixi_slices",
                                                 "manifest_v3.csv"), encoding="utf-8")))
@@ -88,10 +86,10 @@ def main():
                "n": {s: len(r) for s, r in runs.items()},
                "schemes": {}}
     per_all = []
+    w3 = None   # val 上调好的三信号权重（跨 split 持久）
     for split, rows in runs.items():
         schemes = {"fixed2": [], "ccr_only": [], "fusion3_eq": [], "fusion3_val": [],
                    "oracle": []}
-        w3 = None   # val 上调好的三信号权重
         for i, r in enumerate(rows):
             src = np.load(r["t2_path"] if src_mod == "T2" else r["t1_path"]).astype(np.float32)
             gt = np.load(r["t1_path"] if tgt_mod == "T1" else r["t2_path"]).astype(np.float32)
@@ -131,7 +129,7 @@ def main():
                                                          err.ravel()).statistic), 4),
                         "auroc": round(auroc_score(1 - trust, hi), 4)}
                 drop = np.zeros(err.size, dtype=bool)
-                drop[np.argsort((1 - trust).ravel())[:k]] = True
+                drop[np.argsort((1 - trust).ravel())[-k:]] = True
                 keep = (~drop).reshape(err.shape)
                 srow["gain20"] = round(
                     peak_signal_noise_ratio(g[keep], p[keep], data_range=g.max()) -
