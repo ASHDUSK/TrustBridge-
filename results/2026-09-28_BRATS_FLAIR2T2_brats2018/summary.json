@@ -1,0 +1,81 @@
+{
+  "n_slices": 60,
+  "task": "BRATS_FLAIR->T2",
+  "psnr": {
+    "mean": 24.0558,
+    "std": 1.6207
+  },
+  "ssim": {
+    "mean": 87.3793,
+    "std": 2.5243
+  },
+  "ncc": {
+    "mean": 0.9438,
+    "std": 0.0229
+  },
+  "pixel_spearman_trust_vs_error": -0.8971,
+  "pixel_pearson_trust_vs_error": -0.6468,
+  "auroc_fused": {
+    "mean": 0.9324,
+    "std": 0.0293
+  },
+  "auroc_rcrf": {
+    "mean": 0.9252,
+    "std": 0.029
+  },
+  "auroc_unc": {
+    "mean": 0.9263,
+    "std": 0.0357
+  },
+  "auroc_gradient": {
+    "mean": 0.9261,
+    "std": 0.021
+  },
+  "gain_random_db": {
+    "mean": -0.0377,
+    "std": 0.1434
+  },
+  "gain_gradient_db": {
+    "mean": -Infinity,
+    "std": NaN
+  },
+  "gain_input_diff_db": {
+    "mean": -Infinity,
+    "std": NaN
+  },
+  "gain_rcrf_only_db": {
+    "mean": 6.4125,
+    "std": 4.6663
+  },
+  "gain_unc_only_db": {
+    "mean": 7.8438,
+    "std": 4.5717
+  },
+  "gain_fused_db": {
+    "mean": 6.9451,
+    "std": 4.8271
+  },
+  "gain_oracle_db": {
+    "mean": -Infinity,
+    "std": NaN
+  },
+  "image_level_spearman_score_vs_psnr": -0.3138,
+  "qc_counts": {
+    "PASS": 60,
+    "REVIEW": 0,
+    "REJECT": 0
+  },
+  "sec_per_slice": 6.2,
+  "masked_qc": {
+    "n": 56,
+    "masked_psnr": {
+      "mean": 17.58,
+      "std": 2.68
+    },
+    "masked_trust_score": {
+      "mean": 78.09
+    },
+    "spearman_masked_score_vs_masked_psnr": -0.4078,
+    "spearman_masked_score_vs_full_psnr": -0.5484
+  }
+}

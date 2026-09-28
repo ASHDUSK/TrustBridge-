@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-28T19:20:03",
+  "n_slices": 399,
+  "trust_in_tumor_mean": 0.7948,
+  "trust_outside_mean": 0.7254,
+  "trust_drop_inside": -0.0694,
+  "wilcoxon_p": 0.0,
+  "err_in_tumor_mean": 0.15435,
+  "err_outside_mean": 0.09997,
+  "err_ratio_in_out": 1.54,
+  "tumor_auroc_trust_mean": 0.8714,
+  "tumor_auroc_err_mean": 0.9245
+}
