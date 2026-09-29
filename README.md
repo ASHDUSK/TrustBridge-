@@ -6,10 +6,13 @@
 
 **不只合成目标模态，还告诉你哪里可信。**
 
-TrustBridge 是一个本地部署的医学图像翻译应用（脑 MRI 的 T1↔T2↔PD 多对比度互译），
-方法基座为 [SelfRDB —— Self-Consistent Recursive Diffusion Bridge](https://arxiv.org/abs/2405.06789)
+TrustBridge 是一个本地部署的医学图像翻译应用，覆盖 **3 个公开数据集、12 个翻译任务**：
+脑 MRI 多对比度互译（IXI：T1↔T2↔PD）、脑肿瘤病例翻译与瘤区分析（BraTS2018，FLAIR/T2），
+以及盆腔 MRI→CT 合成（SynthRAD2023，放疗 sCT 场景）。方法基座为
+[SelfRDB —— Self-Consistent Recursive Diffusion Bridge](https://arxiv.org/abs/2405.06789)
 （[官方代码](https://github.com/icon-lab/SelfRDB)，MIT License），在其自洽递归采样机制之上加入原创的
-**可信度量化层**：递归收敛残差场 + 随机桥集成不确定性 → 信任图 / Trust Score / 自动质控报告。
+**可信度量化层**：递归收敛残差场 + 随机桥集成不确定性 → 信任图 / Trust Score / 自动质控报告，
+外加输入模态门控（防喂错模态）与像素级校准分析。
 
 ## 为什么做这个
 
@@ -23,7 +26,7 @@ SelfRDB 论文在其讨论部分明确把"扩散桥的不确定性评估"留作�
 |---|---|---|---|
 | ① | 递归收敛残差场 (RCRF) | 捕获反向最后若干步相邻递归估计的**逐像素**残差：网络"反复修改仍不自洽"的区域即幻觉候选区 | 零额外推理成本 |
 | ② | 随机桥集成不确定性 | N 次独立桥采样（终点噪声/生成器隐变量不同）取逐像素标准差 | N 倍采样（10 步桥下可负担） |
-| ③ | Trust Score 与质控门控 | ①②融合为信任图 → 0-100 分 → PASS/REVIEW/REJECT + PNG/JSON 报告 | 可忽略 |
+| ③ | Trust Score 与质控门控 | ①②融合为信任图 → 0-100 分 → PASS/REVIEW/REJECT + PNG/JSON 报告；输入模态门控防喂错数据 | 可忽略 |
 | ④ | 自适应递归 + 步跳加速 | 快/平衡/精细三档预设，平衡耗时与可信度评估 | 工程优化 |
 
 ## 零安装演示包（推荐普通用户）
@@ -81,7 +84,9 @@ python app/app.py                             # 浏览器打开 http://127.0.0.1
 
 > 不想装环境？见上面的 [零安装演示包](#零安装演示包推荐普通用户)，下载 3 个分卷 + `merge_parts.bat` 即可开箱使用。
 
-## 实测结果（IXI 测试集，官方口径评估）
+## 实测结果（3 个数据集，官方口径评估）
+
+### 脑 IXI（自训练 128² 模型，测试集，官方口径）
 
 | 模型 | 任务 | PSNR (dB) | SSIM (%) | NCC | 线性强度校正后 PSNR |
 |---|---|---|---|---|---|
@@ -89,18 +94,44 @@ python app/app.py                             # 浏览器打开 http://127.0.0.1
 | **TrustBridge 自训练**（128² / 30ep / 单卡 4060） | T2→T1 | **19.81±1.10** | **71.0±6.6** | **0.884** | **31.74** |
 | **TrustBridge 自训练**（128² / 30ep / 单卡 4060） | T1→T2 | **20.44±1.16** | **80.4±4.1** | **0.905** | **32.52** |
 
-**创新点有效性**（测试集 60 切片，N=4 集成，详见 [docs/03](docs/03_复现性排查与验证报告.md)）：
+### 盆腔 CT（SynthRAD2023，患者级划分，held-out 患者）
+
+| 权重 | 方向 | PSNR (dB) | NCC | 信任 AUROC | ΔPSNR@剔20% |
+|---|---|---|---|---|---|
+| **自训练**（128² / 60-80ep / 单卡 4060） | T1→CT | **24.36** | **0.962** | 0.869 | +0.36 |
+| 官方权重（256²） | T1→CT | 21.24 | 0.936 | **0.915** | **+4.80** |
+| **自训练**（128² / 80ep / 单卡 4060） | T2→CT | **23.13** | **0.961** | 0.726 | −0.20 |
+| 官方权重（256²） | T2→CT | 19.04 | 0.893 | 0.705 | +1.72 |
+
+### 脑肿瘤 BraTS2018（官方 FLAIR→T2 权重，真实 T2 配对 GT，6 名 HGG 患者 399 含瘤切片）
+
+| 指标 | 数值 |
+|---|---|
+| 翻译质量 PSNR（真实肿瘤病例） | **23.9±4.7 dB** |
+| 信任 AUROC（低信任→高误差像素） | **0.932** |
+| 剔除低信任 20% 像素增益 | **+6.95 dB** |
+| **瘤区定位 AUROC**（信任图 vs 医生分割标注，片内像素级） | **0.871** |
+| 瘤内/瘤外误差比 | **1.54×** |
+
+**瘤区发现（亮点）**：信任图在**没有任何肿瘤知识**的前提下，于片内像素级排序中将瘤区像素排为最可疑——定位质量达到误差图本身的 94%（0.871 vs 0.925），且瘤内误差是瘤外的 1.54 倍。"信任图指向模型最容易幻觉的区域，而幻觉恰恰集中在肿瘤边缘"这一临床叙事成立且有定量支撑。
+
+### 脑 IXI 创新点有效性（测试集 60 切片，N=4 集成）
 
 | 指标 | T2→T1 | T1→T2 |
 |---|---|---|
 | 像素级 Spearman（信任图 vs 真实误差） | **−0.807** | **−0.900** |
 | AUROC（低信任像素预测高误差像素） | **0.818±0.065** | **0.900±0.026** |
 | 剔除最不可信 20% 像素后的 PSNR 增益 | **+2.81 dB** | **+5.37 dB** |
+| 校准分离比（最不可信/最可信分位误差） | **35.3×** | **73.2×** |
 | 图像级 Trust Score vs PSNR 秩相关 | 0.373 | 0.494 |
 
 <p align="center">
   <img src="assets/validation_plots.png" width="760">
 </p>
+
+### 边界实验（诚实负结果，防审稿人质疑）
+
+五项受控实验的结果为混合或阴性，全部公开：可学习聚合（跨方向不稳定）、图像级 QC 回归（过拟合验证集）、自适应重采样（+0.10dB@+35% 成本）、往返一致性信号（AUROC 0.503 随机）、强度后处理（−0.8dB）。**结论：当前数据规模（40 受试者）下，逐像素信任图是唯一可靠形态**——完整分析见 [docs/08](docs/08_消融实验报告.md) 附录 B-F。
 
 ## 从数据到训练（全流程可复现）
 
@@ -119,11 +150,18 @@ python scripts/train.py fit --config configs/train_ixi_t2t1.yaml
 # 4) 评估与信任图验证
 python scripts/eval_test.py --task T2->T1 --ckpt checkpoints/self_t2t1.ckpt --n 150
 python scripts/validate_trust.py --task T2->T1 --ckpt checkpoints/self_t2t1.ckpt --split test
+
+# 5) 跨数据集（盆腔 CT / 脑肿瘤）——详见 docs/08 附录
+python scripts/prepare_brats2018.py    # BraTS2018 HGG：FLAIR+T2+肿瘤分割（需 Kaggle 获取原始数据）
+python scripts/eval_gt_trust.py --task BRATS_FLAIR->T2 --manifest data/brats2018_slices/manifest.csv \
+    --src-col flair_path --gt-col t2_path --mask-col seg_path
+python scripts/trust_vs_tumor.py       # 瘤区 vs 非瘤区信任分析
 ```
 
 数据划分：IXI 40 受试者 = train 26 / val 6 / test 8（无受试者重叠）。
 T2 经 NIfTI 头文件世界坐标仿射对齐到 T1 网格，并做跨模态细配准（±6px）；
 强度协议遵循论文（全卷均值归一 → 全局尺度 C=8.80 → 裁剪 [0,1]）。
+盆腔 CT（SynthRAD2023）与脑肿瘤（BraTS2018）的制备脚本同样入库，患者级划分。
 
 ## 复现性说明（重要）
 
@@ -137,12 +175,14 @@ T2 经 NIfTI 头文件世界坐标仿射对齐到 T1 网格，并做跨模态细
 ## 仓库结构
 
 ```
-app/            Gradio 应用（中文界面：单图翻译 / 整卷 NIfTI / 关于）
-trustbridge/    创新层核心（engine / sampler / pipeline / metrics / report / io_utils）
-configs/        训练配置（官方 10 步扩散桥配方）
-scripts/        数据准备 / 权重下载 / 训练入口 / 评估与信任图验证 / 离线包构建
+app/            Gradio 应用（中文界面：单图翻译 / 整卷 NIfTI / 历史 / 关于，12 个任务）
+trustbridge/    创新层核心（engine / sampler / repaint / gate / pipeline / metrics / report / io_utils / intensity）
+configs/        训练配置（IXI 双方向 128² 与 256²、盆腔 CT 双方向）
+scripts/        数据准备（IXI/BraTS2018/SynthRAD）/ 权重下载 / 训练入口 / 评估与信任验证 /
+                消融与校准分析 / 瘤区分析 / 离线包构建
+results/        全部实验的逐切片存档（config + per_slice + summary，按日期规范命名）
 third_party/    SelfRDB 官方代码（vendored，仅打兼容补丁，见文件内 TrustBridge patch 标记）
-docs/           论文选型与创新点、项目说明书、复现性排查与验证报告
+docs/           论文创新点、项目说明书、复现性排查、消融报告（含 6 项对照/负结果附录）、使用手册
 ```
 
 ## 引用与声明
@@ -150,7 +190,9 @@ docs/           论文选型与创新点、项目说明书、复现性排查与�
 - 方法基座：F. Arslan, B. Kabas, O. Dalmaz, M. Ozbey, T. Çukur,
   *Self-Consistent Recursive Diffusion Bridge for Medical Image Translation*, arXiv:2405.06789。
   官方代码 MIT License。若本仓库对你有用，请同时引用原论文。
-- 数据：[IXI Dataset](https://brain-development.org/ixi-dataset/)（公开科研数据）。
+- 数据：[IXI Dataset](https://brain-development.org/ixi-dataset/)、
+  [BraTS 2018 (MICCAI)](https://www.med.upenn.edu/sbia/brats2018.html)（经 Kaggle 获取）、
+  [SynthRAD2023 Grand Challenge](https://github.com/UMCU-RadioTherapy/SynthRAD2023)（公开科研数据）。
 - **免责声明**：合成结果仅供科研与教学演示，不得直接用于临床诊断决策。
 
 ## License
