@@ -26,8 +26,12 @@ class TrustResult:
     rcrf_map: np.ndarray               # [H,W] 递归收敛残差场（已归一化 0-1）
     unc_map: np.ndarray                # [H,W] 集成不确定性图（已归一化 0-1）
     trust_map: np.ndarray              # [H,W] 融合信任图（1=可信）
-    trust_score: float                 # 0-100 图像级信任分
-    qc_flag: str                       # PASS / REVIEW / REJECT
+    trust_score: float                 # 0-100 图像级信任分（参考值，见 limitation ②）
+    qc_flag: str                       # PASS / REVIEW / REJECT（演示阈值，未经临床标定）
+    lowtrust_ratio: float = 0.0        # trust < low_thresh 的像素占比（%），主视觉依据
+    trust_hist: list = field(default_factory=list)   # 10 个等宽分箱的像素占比（%）
+    qc_note: str = ""                  # 阈值与口径说明（写入报告）
+    w_used: tuple = (0.6, 0.4)         # 本次实际使用的融合权重 (w_residual, w_uncertainty)
     step_residuals: list = field(default_factory=list)   # 每反向步的末次递归残差(标量)
     recursions_used: list = field(default_factory=list)  # 每反向步实际递归次数
     n_ensemble: int = 1
@@ -35,22 +39,39 @@ class TrustResult:
     elapsed_s: float = 0.0
 
 
+# ---- 任务族 → 融合权重（依据 IXI 权重敏感性消融 + 盆腔 CT 跨数据集消融）----
+# · IXI 双方向消融：w(RCRF)∈[0.3,0.5] 是 ΔPSNR@20% 的最优平台（w=0.3 略优），两端（纯 RCRF / 纯集成）均下降约 0.4-0.6 dB
+# · 盆腔 CT 官方权重（测试数据与训练分布错配）：RCRF 单用 +4.91 dB，远高于集成单用 +1.61 dB
+#   → 错配越重越依赖 RCRF，因此该族权重向 RCRF 倾斜（呼应论文论点：信任信号价值 ∝ 模型-数据错配程度）
+OFFICIAL_CT_TASKS = {"CT_T1->CT", "CT_T2->CT"}
+
+
+def preset_for(task_id: str) -> dict:
+    """返回该任务族经消融支持的最优信任融合权重。"""
+    tid = (task_id or "").replace("→", "->").replace(" ", "")
+    if tid in OFFICIAL_CT_TASKS:
+        return {"w_residual": 0.8, "w_uncertainty": 0.2}   # 官方 CT 权重 + 跨数据集输入：重错配，RCRF 主导
+    return {"w_residual": 0.4, "w_uncertainty": 0.6}       # 默认：IXI / 自训 / BRATS，数据匹配
+
+
 class TrustSampler:
     def __init__(self,
                  engine,
-                 capture_last_steps: int = 3,
-                 w_residual: float = 0.6,
-                 w_uncertainty: float = 0.4,
-                 qc_pass: float = 75.0,
-                 qc_review: float = 55.0,
-                 pct: float = 99.0):
+        capture_last_steps: int = 3,
+        w_residual: float = 0.4,
+        w_uncertainty: float = 0.6,
+        qc_pass: float = 75.0,
+        qc_review: float = 55.0,
+        pct: float = 99.0,
+        low_thresh: float = 0.6):
         """
         Args:
             engine: BridgeEngine
             capture_last_steps: 捕获递归残差的最后若干个反向步
-            w_residual / w_uncertainty: 信任图融合权重
-            qc_pass / qc_review: 质控阈值（Trust Score）
+            w_residual / w_uncertainty: 信任图融合权重（消融最优区间见 preset_for）
+            qc_pass / qc_review: 质控阈值（Trust Score，演示默认值，未经临床标定）
             pct: 归一化分位（抗离群值）
+            low_thresh: 判定"低信任区域"的信任图阈值（与 UI 叠加图一致）
         """
         self.eng = engine
         self.capture_last_steps = capture_last_steps
@@ -59,6 +80,7 @@ class TrustSampler:
         self.qc_pass = qc_pass
         self.qc_review = qc_review
         self.pct = pct
+        self.low_thresh = low_thresh
 
     # ---------- 官方后验公式的步长泛化版 ----------
     def _q_posterior(self, t: torch.Tensor, t_prev: torch.Tensor,
@@ -218,10 +240,20 @@ class TrustSampler:
         flag = "PASS" if score >= self.qc_pass else \
             ("REVIEW" if score >= self.qc_review else "REJECT")
 
+        # ---- 区域级统计（低信任占比 + 分布直方图）：比单一均值稳健，作为 UI 主视觉依据 ----
+        low_ratio = float((trust < self.low_thresh).mean() * 100.0)
+        counts, _edges = np.histogram(trust, bins=10, range=(0.0, 1.0))
+        hist = (counts / float(trust.size) * 100.0).round(2).tolist()
+        qc_note = (f"Trust Score 为全图信任均值（参考值）。已知限制：图像级简单聚合与真实误差的相关性有限"
+                   f"（IXI +0.37 / CT −0.63），请以像素级信任图与低信任区域占比为准。"
+                   f"质控阈值 PASS≥{self.qc_pass:g} / REVIEW≥{self.qc_review:g} 为演示默认值，未经临床标定。")
+
         return TrustResult(
             pred=pred, members=members,
             rcrf_map=rcrf_n, unc_map=unc_n, trust_map=trust,
             trust_score=score, qc_flag=flag,
+            lowtrust_ratio=low_ratio, trust_hist=hist, qc_note=qc_note,
+            w_used=(self.w_residual, self.w_uncertainty),
             step_residuals=step_curve, recursions_used=rec_used,
             n_ensemble=n, step_skip=skip,
             elapsed_s=time.time() - t0,

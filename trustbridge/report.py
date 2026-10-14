@@ -29,13 +29,101 @@ def make_overlay(pred01: np.ndarray, trust_map: np.ndarray,
     return np.clip(rgb, 0, 1)
 
 
+def compose_trust_hist(result, path, low_thresh: float = 0.6):
+    """信任图分布直方图：UI 主视觉依据（比单一均值稳健，见 limitation ②）。"""
+    hist = list(getattr(result, "trust_hist", []) or [])
+    if len(hist) != 10:
+        hist = [0.0] * 10
+    labels = ["%.1f–%.1f" % (i / 10, (i + 1) / 10) for i in range(10)]
+    low_n = int(round(float(low_thresh) * 10))
+    colors = ["#dc2626" if i < low_n else "#16a34a" for i in range(10)]
+
+    fig, ax = plt.subplots(figsize=(6.6, 3.4))
+    ax.bar(range(10), hist, color=colors, edgecolor="#0f172a", linewidth=0.4)
+    ax.axvline(low_n - 0.5, color="#111827", ls="--", lw=1.2)
+    ax.set_xticks(range(10))
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=9)
+    ax.set_xlabel("信任度分箱（0 = 最不可信，1 = 最可信）", fontsize=10)
+    ax.set_ylabel("像素占比（%）", fontsize=10)
+    ax.set_title("信任度分布  ·  低信任（<%.1f）区域占比 %.1f%%   ·  参考总分 %.1f/100"
+                 % (low_thresh, getattr(result, "lowtrust_ratio", 0.0),
+                    getattr(result, "trust_score", 0.0)),
+                 fontsize=11.5, fontweight="bold")
+    ax.grid(axis="y", alpha=0.3)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+    return path
+
+
+def compose_trust_map_png(trust_map: np.ndarray, path, low_thresh: float = 0.6):
+    """带色标的信任图（Gradio gallery 无 colorbar，颜色无法解读 → 单独成图）。"""
+    fig, ax = plt.subplots(figsize=(4.8, 4.3))
+    im = ax.imshow(trust_map, cmap="viridis", vmin=0, vmax=1)
+    ax.axis("off")
+    ax.set_title("信任图（亮 = 越可信）", fontsize=11, fontweight="bold")
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.set_label("信任度：1 = 可信，0 = 不可信", fontsize=9)
+    cbar.ax.axhline(float(low_thresh), color="#dc2626", lw=1.4)
+    cbar.ax.text(1.35, float(low_thresh), " 复核线 %.2f" % low_thresh,
+                 color="#dc2626", fontsize=8, va="center")
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return path
+
+
+def lowtrust_regions(trust_map: np.ndarray, low_thresh: float = 0.6,
+                     top_k: int = 5, min_area: int = 16) -> list:
+    """低信任连通区域 top-k：把像素级证据升级为可人工复核的结构化区域。
+
+    动机：图像级单一均值与真实误差相关性有限（limitation ②），区域级证据更稳健，
+    也更接近"指出哪几块需要复核"的临床用法。
+    """
+    try:
+        from skimage import measure
+    except Exception:
+        return []
+    mask = trust_map < float(low_thresh)
+    if mask.sum() == 0:
+        return []
+    lab = measure.label(mask, connectivity=2)
+    total = float(trust_map.size)
+    out = []
+    for p in measure.regionprops(lab):
+        if p.area < min_area:
+            continue
+        cy, cx = p.centroid
+        vals = trust_map[lab == p.label]
+        out.append({
+            "面积(px)": int(p.area),
+            "占比(%)": round(p.area / total * 100.0, 2),
+            "质心(行,列)": "%d,%d" % (int(cy), int(cx)),
+            "区域平均信任": round(float(vals.mean()), 3),
+            "区域最低信任": round(float(vals.min()), 3),
+        })
+    out.sort(key=lambda d: -d["面积(px)"])
+    return out[:top_k]
+
+
 def compose_report_png(source01, pred01, result, path, gt01=None,
                        low_thresh: float = 0.6,
-                       source_mod: str = "源", target_mod: str = "目标"):
+                       source_mod: str = "源", target_mod: str = "目标",
+                       input_gate: dict | None = None):
     """2×3 报告图：源 | 翻译 | 信任热图 | 叠加 | 误差(可选) | 收敛曲线。"""
     n_err = gt01 is not None
     fig, axes = plt.subplots(2, 3, figsize=(13.5, 9.2))
-    fig.suptitle("TrustBridge 可信翻译质控报告", fontsize=17, fontweight="bold", y=0.985)
+    title = "TrustBridge 可信翻译质控报告"
+    if input_gate is not None:
+        # 注：不要用 ✓ / ⚠ 等符号——微软雅黑缺这些字形，会渲染成方块
+        if input_gate.get("ok", True):
+            title += "   ｜ 输入校验：通过"
+        else:
+            title += "   ｜ 输入校验：未通过（模态不符，结果不可靠）"
+    fig.suptitle(title, fontsize=16, fontweight="bold", y=0.985,
+                 color="#b91c1c" if input_gate is not None and not input_gate.get("ok", True) else "#0f172a")
 
     panels = [
         (axes[0, 0], source01, f"源图像（{source_mod}）", "gray", None),
@@ -74,10 +162,11 @@ def compose_report_png(source01, pred01, result, path, gt01=None,
 
     flag_c = FLAG_COLOR.get(result.qc_flag, "#555")
     fig.text(0.5, 0.012,
-             f"Trust Score = {result.trust_score:.1f}/100   ·   质控结论: "
-             f"{result.qc_flag}（{FLAG_TEXT.get(result.qc_flag, '')}）   ·   "
+             f"Trust Score = {result.trust_score:.1f}/100（参考值）   ·   "
+             f"低信任区域占比 {result.lowtrust_ratio:.1f}%   ·   "
+             f"质控建议: {result.qc_flag}（{FLAG_TEXT.get(result.qc_flag, '')}）   ·   "
              f"集成 N={result.n_ensemble} · 步跳={result.step_skip} · 耗时 {result.elapsed_s:.1f}s",
-             ha="center", fontsize=12.5, color=flag_c, fontweight="bold")
+             ha="center", fontsize=11, color=flag_c, fontweight="bold")
     fig.tight_layout(rect=[0, 0.035, 1, 0.965])
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -92,7 +181,14 @@ def compose_report_json(source_name, task_id, result, path, metrics=None,
         "source_file": os.path.basename(str(source_name)),
         "task": task_id,
         "trust_score": round(result.trust_score, 2),
+        "trust_score_meaning": "全图信任均值（参考值）；图像级聚合与真实误差相关有限，请以像素级信任图与 lowtrust_ratio_pct 为准",
         "qc_flag": result.qc_flag,
+        "qc_note": getattr(result, "qc_note", ""),
+        "lowtrust_ratio_pct": round(getattr(result, "lowtrust_ratio", 0.0), 2),
+        "lowtrust_thresh": getattr(result, "lowtrust_thresh", 0.6),
+        "trust_hist_pct": [round(x, 2) for x in getattr(result, "trust_hist", [])],
+        "fusion_weights": dict(zip(("w_residual", "w_uncertainty"),
+                                   getattr(result, "w_used", (0.6, 0.4)))),
         "n_ensemble": result.n_ensemble,
         "step_skip": result.step_skip,
         "elapsed_s": round(result.elapsed_s, 3),

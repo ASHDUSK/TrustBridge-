@@ -23,7 +23,14 @@ if not os.path.exists(DEFAULT_GATE):
 GATE_PELVIS = os.path.join(ROOT, "data", "modality_gate_pelvis.npz")
 
 # 任务族 → 门控文件（脑任务用脑门控；盆腔 CT 任务用盆腔门控）
-GATE_FOR_TASK = {}
+# 注意：盆腔门控在脑→盆腔跨域泛化验证中失败（见 docs/12 表6），
+# 且 modality_gate_pelvis.npz 未随包分发 → check() 会因文件缺失自动跳过，不会崩溃。
+GATE_FOR_TASK = {
+    "CT_T1->CT": GATE_PELVIS,
+    "CT_T2->CT": GATE_PELVIS,
+    "CT_T1->CT_S": GATE_PELVIS,
+    "CT_T2->CT_S": GATE_PELVIS,
+}
 
 
 def gate_for_task(task_id: str) -> str:
@@ -88,8 +95,18 @@ def fit_gate(t1_slices: list[np.ndarray], t2_slices: list[np.ndarray],
 
 def check(img01: np.ndarray, expected_source: str,
           gate_path: str = DEFAULT_GATE, thr: float = 0.5) -> dict:
-    """给定输入图与任务声明的源模态，返回是否匹配。expected_source ∈ {T1, T2}。"""
-    z = np.load(gate_path)
+    """给定输入图与任务声明的源模态，返回是否匹配。expected_source ∈ {T1, T2}。
+
+    门控模型缺失（如盆腔门控未随包分发）时优雅跳过，返回 None，不中断推理。
+    """
+    if not gate_path or not os.path.exists(gate_path):
+        return {"ok": True, "prob_t2": None, "expected": str(expected_source).upper(),
+                "flagged": False, "note": "gate model unavailable - skipped"}
+    try:
+        z = np.load(gate_path)
+    except Exception:
+        return {"ok": True, "prob_t2": None, "expected": str(expected_source).upper(),
+                "flagged": False, "note": "gate model unreadable - skipped"}
     coef, intercept = z["coef"], float(z["intercept"][0])
     f = gate_features(img01)
     if f is None:

@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import numpy as np
 
-from .sampler import TrustSampler
+from .sampler import TrustSampler, preset_for
 from .metrics import psnr_ssim
 
 
 def get_sampler(engine) -> TrustSampler:
+    """取（并缓存）该任务的信任采样器；融合权重按任务族取消融最优值。"""
     if not hasattr(engine, "_sampler"):
-        engine._sampler = TrustSampler(engine)
+        engine._sampler = TrustSampler(
+            engine, **preset_for(getattr(engine, "task_id", "")))
     return engine._sampler
 
 

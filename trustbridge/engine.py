@@ -47,7 +47,7 @@ class BridgeEngine:
     """单任务推理引擎：只保留生成器 Gθ 与扩散调度，不含判别器/训练逻辑。"""
 
     def __init__(self, task_id: str, ckpt_path: str | None = None,
-                 device: str | None = None):
+                 device: str | None = None, precision: str = "fp32"):
         task_id = task_id.replace("→", "->").replace(" ", "")
         if task_id not in TASKS:
             raise ValueError(f"未知任务: {task_id}，可选: {list(TASKS)}")
@@ -92,6 +92,8 @@ class BridgeEngine:
 
         if self.device.startswith("cuda"):
             torch.backends.cudnn.benchmark = True
+        # 推理精度：bf16 用 autocast 包裹生成器前向（权重保持 fp32，数值稳定）
+        self.use_bf16 = (precision == "bf16" and self.device.startswith("cuda"))
 
     @property
     def param_count_m(self) -> float:
