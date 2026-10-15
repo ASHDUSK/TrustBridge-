@@ -1,8 +1,16 @@
 #!/bin/bash
 # 分段并行下载器 v3：支持重定向(-L)、逐段校验、跨运行幂等续传、段内断点续传（抗断流）
-# 用法: seg_download.sh <URL> <TOTAL_SIZE> <OUT_FILE> [NSEG]
+# 用法: seg_download.sh <URL> <TOTAL_SIZE|auto> <OUT_FILE> [NSEG]
+#      TOTAL_SIZE 写 auto 会自动探测真实大小（推荐：写死字节数少 1 字节就会让
+#      torch 权重尾部 central directory 残缺 → "failed finding central directory"）
 set -u
 URL="$1"; TOTAL="$2"; OUT="$3"; NSEG="${4:-16}"
+if [ "$TOTAL" = "auto" ]; then
+  TOTAL=$(curl -sSL --ssl-no-revoke -r 0-0 -o /dev/null -D - "$URL" 2>/dev/null \
+          | tr -d '\r' | grep -i '^content-range:' | sed -E 's#.*/([0-9]+).*#\1#')
+  if [ -z "$TOTAL" ]; then echo "FAIL cannot detect size for $URL" >&2; exit 1; fi
+  echo "detected size: $TOTAL"
+fi
 # 成品已存在且大小正确 → 跳过（幂等）
 if [ -f "$OUT" ] && [ "$(stat -c%s "$OUT")" -eq "$TOTAL" ]; then
   echo "SKIP $OUT (already complete)"; exit 0
