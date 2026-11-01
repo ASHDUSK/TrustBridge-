@@ -1,0 +1,23 @@
+% Tab.2b — fusion-weight sensitivity and step skipping (appendix)
+% Source of truth: docs/12_实验数据整理_论文用_2026-10-12.md, 表2b
+\begin{table}[htbp]
+\centering\small
+\caption{Fusion-weight sensitivity ($w_1$ = RCRF weight) and step skipping
+(IXI test set, 60 slices, $\Delta$PSNR@20\% in dB).}
+\label{tab:weights_en}
+\begin{tabular}{lcc}
+\toprule
+$w_1$ ($w_2 = 1-w_1$) & T2$\to$T1 & T1$\to$T2 \\
+\midrule
+1.0 (RCRF only) & 2.403 & 4.728 \\
+0.7 & 2.712 & 5.248 \\
+0.5 & 2.811 & 5.439 \\
+\textbf{0.3} & \textbf{2.841} & \textbf{5.472} \\
+0.0 (ensemble only) & 2.448 & 4.900 \\
+\midrule
+\multicolumn{3}{l}{\emph{Step skipping, skip=2 (fusion weights 0.6/0.4):}} \\
+\quad skip=1 (per-step, 40 fwd passes) & 2.771 (3.92 s/slice) & 5.354 (3.10 s/slice) \\
+\quad skip=2 (24 fwd passes, $-39\%$ time) & 2.859 (2.38 s/slice) & 5.494 (1.89 s/slice) \\
+\bottomrule
+\end{tabular}
+\end{table}

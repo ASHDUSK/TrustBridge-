@@ -1,0 +1,24 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.9in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\begin{document}
+\title{TrustBridge -- English table set (working preview)}
+\maketitle
+Numbers from docs/12 (2026-10-12 consolidation). Each \texttt{tab*.tex} is a
+standalone \texttt{tabular} block for \verb|\input| into the final paper.
+
+\input{tab1_main.tex}
+\clearpage
+\input{tab2_ablation.tex}
+\input{tab2b_weights.tex}
+\clearpage
+\input{tab3_cross.tex}
+\clearpage
+\input{tab4_lesion.tex}
+\input{tab5_calibration.tex}
+\end{document}

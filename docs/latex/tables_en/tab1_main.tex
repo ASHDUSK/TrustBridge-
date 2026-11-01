@@ -1,0 +1,19 @@
+% Tab.1 — IXI main results (self-trained 128x128 models, 60 test slices)
+% Source of truth: docs/12_实验数据整理_论文用_2026-10-12.md, 表1
+\begin{table}[htbp]
+\centering\footnotesize\setlength{\tabcolsep}{3.6pt}
+\caption{Main results on IXI (self-trained $128\times128$ models, 60 test
+slices, official mean-norm PSNR/SSIM protocol). AUROC: low-trust pixels
+localizing the top-error decile; chance level $0.5$.}
+\label{tab:main_en}
+\begin{tabular}{lcccccccc}
+\toprule
+ & \multicolumn{3}{c}{Translation quality} & \multicolumn{5}{c}{Trust localization} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-9}
+Direction & PSNR (dB) & SSIM (\%) & NCC & Spearman & Pearson & \makecell{AUROC\\(fused)} & \makecell{AUROC\\(RCRF)} & \makecell{AUROC\\(grad.)} \\
+\midrule
+T2$\to$T1 & 20.04$\pm$1.18 & 71.33 & 0.887 & $-0.806$ & $-0.493$ & \textbf{0.819$\pm$0.064} & 0.800 & 0.448 \\
+T1$\to$T2 & 20.68$\pm$1.13 & 80.59 & 0.908 & $-0.902$ & $-0.592$ & \textbf{0.902$\pm$0.026} & 0.887 & 0.777 \\
+\bottomrule
+\end{tabular}
+\end{table}

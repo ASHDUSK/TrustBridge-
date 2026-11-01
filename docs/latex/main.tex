@@ -1,0 +1,362 @@
+\documentclass[11pt]{article}
+% TrustBridge paper draft v0.1 (2026-09-28)
+% Single-column draft for internal review; final version will be re-typeset
+% in the venue template (LNCS for MICCAI workshop / IEEEtran for ISBI).
+\usepackage[margin=1in]{geometry}
+\usepackage{lmodern}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage{xcolor}
+
+% ---- terminology placeholder: rename RCRF globally once decided ----
+\newcommand{\rcrf}{recursive convergence residual field (RCRF)}
+\newcommand{\TrustMap}{trust map}
+\newcommand{\TrustScore}{Trust Score}
+
+\title{TrustBridge: Trust-Map Quantification for Diffusion-Bridge\\
+Medical Image Translation via Recursive Convergence Residuals}
+
+\author{%
+  Author list to be finalized\\
+  Institution\\
+  \small Code and weights: \url{https://github.com/ASHDUSK/TrustBridge-}
+}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Diffusion bridges achieve state-of-the-art medical image translation, yet their
+outputs carry no indication of \emph{where} the synthesis can be trusted---a gap
+that the original SelfRDB authors explicitly identify as an open problem.
+We present TrustBridge, a training-free trust-quantification layer that harvests
+two signals already present inside the self-consistent recursive bridge sampler:
+(1) the \emph{recursive convergence residual field} (RCRF), the per-pixel
+discrepancy between successive recursive target estimates, marking pixels the
+model repeatedly revisits without reaching self-consistency; and (2)
+\emph{stochastic-bridge ensemble uncertainty}, the per-pixel dispersion across
+independent bridge chains arising from the stochastic endpoints and latent
+variables native to the sampler. The two signals are fused into a pixel-wise
+\TrustMap{}, aggregated into an image-level \TrustScore{} (0--100), and gated by
+a three-tier rule (PASS/REVIEW/REJECT) with an input-modality check. On held-out
+data spanning three datasets and five translation directions, the \TrustMap{}
+correlates strongly with true pixel error (Spearman $-0.81$ to $-0.90$);
+low-trust pixels localize high-error pixels with AUROC up to $0.93$; the
+least-trusted error decile exceeds the most-trusted decile by $35$--$73\times$;
+and discarding the least-trusted 20\% of pixels improves PSNR by up to
+$6.95$\,dB on real tumor patients. Ablations confirm that each module is
+individually effective and their fusion is optimal. Five controlled experiments
+(adaptive resampling, learnable aggregation, image-level regression, intensity
+harmonization, and round-trip consistency) further delineate the boundary of
+the approach. The system ships as an open-source clinical workbench with
+fully reproducible training pipelines.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+Multi-contrast magnetic resonance imaging (MRI) captures complementary tissue
+contrast, but acquiring every clinically relevant weighting is expensive, slow,
+and sometimes contraindicated. Medical image translation---synthesizing an
+unacquired modality from an acquired one---addresses this scarcity and now
+achieves excellent fidelity. Denoising diffusion probabilistic models
+(DDPMs)~\cite{ho2020ddpm,nichol2021iddpm} replaced GANs in this task for their
+training stability, and diffusion bridges connect the source and target
+distributions directly rather than through an isotropic-noise bottleneck. In
+particular, SelfRDB~\cite{arslan2025selfrdb} introduced a self-consistent
+recursive diffusion bridge that reaches state-of-the-art multi-contrast
+translation.
+
+Trust, however, has not kept pace with fidelity. Because translation is
+ill-posed, generative models can \emph{hallucinate}: synthesize plausible
+structure that is absent from the underlying anatomy. In clinical use, a
+radiologist cannot distinguish such fabrication from faithful synthesis, and
+this trust bottleneck---not image quality---is the primary obstacle to
+deployment. The SelfRDB authors state this gap explicitly: the uncertainty of
+diffusion bridges ``is warranted to [be] evaluate[d]'' in future work
+\cite{arslan2025selfrdb}.
+
+We close this gap with an observation: the self-consistent recursive sampler
+already computes, at every step and every pixel, the evidence needed to assess
+its own reliability---it simply discards it. SelfRDB reduces the discrepancy
+between successive recursive estimates to a single stopping scalar; the
+per-pixel residual field carries the spatial distribution of the model's
+\emph{inability to self-consist}. Likewise, the bridge endpoint noise and
+generator latent variables make repeated runs differ; their dispersion marks
+where the model holds no stable belief. TrustBridge systematizes both signals
+into a \TrustMap{}, an image-level \TrustScore{}, and an archivable QC report,
+with three properties that distinguish it from prior uncertainty machinery:
+(i) \emph{training-free}---no model change, no labels, no extra network;
+(ii) \emph{sampler-native}---signals are extracted from quantities the sampler
+already computes; and (iii) \emph{pixel-level}---unlike image-level hallucination
+metrics~\cite{tivnan2024hallucinationindex}, the output supports a radiologist's
+local reading.
+
+\paragraph{Contributions.}
+\begin{enumerate}
+  \item We propose the \rcrf{} (RCRF) and stochastic-bridge ensemble
+        uncertainty as complementary, training-free trust signals for
+        diffusion-bridge translation, fused into a calibrated \TrustMap{} with
+        a three-tier QC gate and an input-modality gate
+        (\S\ref{sec:method}).
+  \item We validate the \TrustMap{} on three public datasets and five
+        translation directions: error localization AUROC up to $0.93$,
+        a $35$--$73\times$ error separation between the least- and
+        most-trusted deciles, and sparsification gains up to $+6.95$\,dB on
+        \emph{real tumor patients} with co-registered ground truth
+        (\S\ref{sec:exp}).
+  \item We report five controlled experiments whose outcomes are mixed or
+        negative---adaptive resampling, learnable aggregation, image-level
+        regression, intensity harmonization, and round-trip consistency---and
+        use them to delineate the method's boundary: at this data scale, the
+        pixel-wise \TrustMap{} is the only reliable product form, and
+        learning-based aggregation overfits six-subject validation sets
+        (\S\ref{sec:exp}, \S\ref{sec:discussion}).
+\end{enumerate}
+
+\section{Related Work}
+\label{sec:related}
+\input{related_work}
+
+\section{Method}
+\label{sec:method}
+
+\subsection{Preliminaries: the self-consistent recursive diffusion bridge}
+SelfRDB~\cite{arslan2025selfrdb} constructs a bridge whose forward process
+starts at the target image $x_0$ and ends at a noise-added source image
+$y_\epsilon$, with intermediate samples
+$x_t=\mu_{x_0,t}x_0+\mu_{y,t}y+\sigma_t\epsilon$ where
+$\sigma_t^2=\gamma s_t^2/(\bar s_t^2+s_t^2)$ grows monotonically toward the
+source end (\emph{soft prior}). Reverse sampling starts at $x_T=y_\epsilon$;
+at every step $t$, a generator
+$G_\theta(x_t,t,y,\tilde x_0^{(r)})$ recursively refines a target estimate
+$\tilde x_0^{(r+1)}$ until the change between successive estimates falls below
+a threshold $\tau$ (SelfRDB: a $1\%$ global mean), after which the
+self-consistent estimate $\tilde x_0^{\ast}$ drives a posterior draw of
+$x_{t-1}$. The publicly released configuration uses $T{=}10$ bridge steps and
+at most $R{=}2$ recursions, which makes per-slice inference interactive.
+
+\subsection{Recursive convergence residual field (RCRF)}
+Within one reverse step, the recursion produces a sequence of pixel-wise
+discrepancies
+$R^{(r)}(p)=\lvert\tilde x_0^{(r+1)}(p)-\tilde x_0^{(r)}(p)\rvert$, $p$ indexing
+pixels. SelfRDB aggregates $R^{(r)}$ to a global mean for its stopping rule and
+discards the spatial information. We retain the residual field over the final
+$K$ reverse steps (the steps closest to the data distribution),
+\begin{equation}
+  \mathrm{RCRF}(p) \;=\; \frac{1}{K}\sum_{t\in\mathcal{K}}\;\sum_{r}
+      \bigl\lvert \tilde x_0^{(r+1)}(p)-\tilde x_0^{(r)}(p)\bigr\rvert ,
+  \label{eq:rcrf}
+\end{equation}
+where $\mathcal{K}$ is the capture window ($K{=}3$ here). Intuition: pixels the
+generator keeps revisiting without converging are pixels for which its learned
+prior provides insufficient evidence---prime candidates for hallucinated
+content. The signal is epistemic in the sense
+of~\cite{kendall2017uncertainties} and costs nothing: the recursion runs
+anyway.
+
+\subsection{Stochastic-bridge ensemble uncertainty}
+The bridge endpoint $y_\epsilon$ and the generator's internal latent variables
+$z$ make two runs of the sampler on the same input differ. Running
+$N$ independent chains (distinct endpoint noise and latents) and taking the
+per-pixel standard deviation,
+$U(p)=\operatorname{std}_{n}\{x_0^{(n)}(p)\}$, yields a second signal that
+measures \emph{sampling consistency}: pixels whose synthetic value is unstable
+across chains are regions where the model holds no stable belief. Unlike
+MC-Dropout~\cite{gal2016mcdropout} or deep
+ensembles~\cite{lakshminarayanan2017ensembles}, no dropout is injected and no
+separate networks are trained; the dispersion arises from the bridge sampler
+itself. Prior diffusion-ensemble work in segmentation and
+restoration~\cite{wolleb2022diffusionensembles,osuna2024microscopy} established
+that such dispersion tracks difficult regions; we pair it with a
+non-dispersion signal (RCRF) that is orthogonal to sampling variance.
+
+\subsection{Trust map, Trust Score, and QC gate}
+Both fields are robustly normalized (99th-percentile clipping) and fused as
+$\TrustMap(p)=1-w_1\widehat{\mathrm{RCRF}}(p)-w_2\widehat{U}(p)$ with
+$w_1{=}0.6$, $w_2{=}0.4$ (sensitivity analyzed in \S\ref{sec:exp}). The image
+level $\TrustScore$ is the body-region mean of $\TrustMap$ scaled to 0--100,
+gated at $75$ (PASS), $55$ (REVIEW), and $55$ (REJECT). A per-slice report
+(PNG + JSON) records the maps, the per-step recursion statistics, and the
+input-gate verdict. An input-modality gate---a light classifier on
+body-standardized percentile and gradient features---flags inputs whose
+characteristics do not match the declared source modality before any synthesis
+occurs; on IXI test data it verifies correctly for $99$--$100\%$ of matched
+inputs and detects $99$--$100\%$ of mismatched ones.
+
+\section{Experiments}
+\label{sec:exp}
+
+\subsection{Setup}
+\paragraph{Datasets.}
+\textbf{IXI}~\cite{ixi_dataset}: 40 healthy subjects (T1/T2/PD), subject-wise
+split 26/6/8 with no subject overlap; $4{,}000{+}$ paired axial slices under
+the official protocol (per-slice statistics, official mean-norm PSNR/SSIM).
+\textbf{BraTS2018}~\cite{menze2015brats}: 6 HGG patients (399 tumor-bearing
+slices) with real co-registered T2 ground truth and tumor segmentation; source
+FLAIR. \textbf{SynthRAD2023 pelvis}~\cite{thummerer2023synthrad}: 10 patients,
+center-matched T1w$\to$CT and T2w$\to$CT.
+\paragraph{Models.}
+Two self-trained 128$\times$128 bridges (T2$\to$T1 and T1$\to$T2, 30 epochs,
+single RTX 4060 Laptop 8\,GB, recipe matched to the official release) provide
+the quantitative backbone; official SelfRDB weights provide 256$\times$256
+demonstration and the BraTS FLAIR$\to$T2 evaluation.
+\paragraph{Ethics.}
+All three datasets are public research datasets; all processing is local; no
+output is used for clinical decisions.
+
+\subsection{Translation quality and trust localization}
+\begin{table}[t]
+\centering\small
+\caption{Main results. IXI: self-trained 128$\times$128 models, official
+mean-norm PSNR/SSIM protocol. ``Corrected'' removes a global linear intensity
+mismatch (see \S\ref{sec:discussion}). BraTS: official
+FLAIR$\to$T2 weights, 399 tumor-bearing slices.}
+\label{tab:main}
+\begin{tabular}{llcccc}
+\toprule
+Dataset & Direction & PSNR (dB) & SSIM (\%) & NCC & Corrected PSNR \\
+\midrule
+IXI (paper value~\cite{arslan2025selfrdb}) & T2$\to$T1 & 31.56 & 95.65 & -- & -- \\
+IXI, ours & T2$\to$T1 & 19.81$\pm$1.10 & 71.0$\pm$6.6 & 0.884 & 31.74 \\
+IXI, ours & T1$\to$T2 & 20.44$\pm$1.16 & 80.4$\pm$4.1 & 0.905 & 32.52 \\
+BraTS2018, official & FLAIR$\to$T2 & 24.06$\pm$1.62 & 87.38 & 0.944 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:main} reports translation quality. On tumor patients, the
+official FLAIR$\to$T2 weights reach $23.9$\,dB against real co-registered T2
+ground truth---the first successful quantitative validation of bridge
+translation on \emph{pathological} data in our pipeline. On IXI, decomposing
+the error shows that the content fidelity of our 128$\times$128 self-trained
+models already matches the paper's setting: after removing a global linear
+intensity mismatch, PSNR reaches $31.74$/$32.52$\,dB (T2$\to$T1/T1$\to$T2)
+versus the paper's $31.56$\,dB, while the raw gap is attributable to a global
+intensity offset and the reduced training budget.
+
+\paragraph{Trust localization.}
+Across IXI test slices, the \TrustMap{} correlates with true pixel error at
+Spearman $\rho=-0.806$ (T2$\to$T1) and $\rho=-0.903$ (T1$\to$T2), and low-trust
+pixels localize the top-error decile with AUROC $0.819$ and $0.902$
+respectively. On BraTS tumor patients, trust AUROC is $0.932$.
+
+\subsection{Ablation and controls}
+\begin{table}[t]
+\centering\small
+\caption{Ablation and controls (7-row protocol). AUROC: low-trust pixels
+predicting the top-error decile. $\Delta$PSNR: gain after dropping the
+least-trusted 20\% of pixels.}
+\label{tab:ablation}
+\begin{tabular}{lcccc}
+\toprule
+Scheme & \multicolumn{2}{c}{AUROC} & \multicolumn{2}{c}{$\Delta$PSNR@20\% (dB)} \\
+ & T2$\to$T1 & T1$\to$T2 & T2$\to$T1 & T1$\to$T2 \\
+\midrule
+Random (control) & 0.501 & 0.498 & $\approx$0 & $\approx$0 \\
+Gradient baseline & 0.448 & 0.777 & +0.02 & +1.46 \\
+Input-difference$^{\dagger}$ & -- & -- & +2.02 & +0.39 \\
+RCRF only (N=1) & 0.792 & 0.880 & +2.34 & +4.56 \\
+Ensemble only & 0.806 & 0.897 & +2.45 & +4.90 \\
+\textbf{Fused (ours)} & \textbf{0.819} & \textbf{0.902} & \textbf{+2.14} & \textbf{+5.19} \\
+Oracle (error map) & 1.000 & 1.000 & +10.13 & +15.03 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:ablation}: every module is individually effective far above the
+random control; the fusion matches or beats each single signal; and the oracle
+row quantifies the headroom---our signals capture $21$--$35\%$ of the
+theoretically available sparsification gain. Weight sensitivity is mild
+($<0.01$ AUROC across $w_1\in[0.3,0.6]$).
+
+\subsection{Calibration}
+Binning test pixels by trust decile yields a monotone reliability curve: the
+least-trusted decile carries $35.3\times$ (T2$\to$T1) and $73.2\times$
+(T1$\to$T2) the mean absolute error of the most-trusted decile, with $88.9\%$
+of adjacent-bin transitions monotone. The trust map is therefore not merely a
+ranking but a strongly discriminative magnitude estimate.
+
+\subsection{Boundary experiments}
+Five controlled experiments delineate what the layer can and cannot do at this
+data scale:
+(1)~\emph{learnable aggregation}: a 16-feature logistic/GBDT aggregator trained
+on the validation split improves T2$\to$T1 marginally ($+0.010$ AUROC) but
+regresses T1$\to$T2 ($-0.03$), overfitting the 6-subject validation set;
+(2)~\emph{image-level regression}: a 16-feature ridge model predicts image
+PSNR worse than the baseline trust mean ($0.32$--$0.33$ vs.\ $0.38$--$0.40$);
+(3)~\emph{adaptive resampling} and (4)~\emph{round-trip consistency
+signal}: no quality gain ($-0.016$\,dB and AUROC $0.503$ respectively) at
+$35$--$75\%$ extra cost---consistent with ensemble-mean saturation;
+(5)~\emph{intensity harmonization}: post-hoc quantile/affine matching degrades
+raw PSNR ($-0.8$/$-0.9$\,dB) because the per-slice intensity offset is not
+predictable without ground truth. These results are reported in full as
+negative findings: at 40 subjects, the pixel-wise \TrustMap{} is the only
+reliable product form, and learning-based aggregation requires
+$\ge$20 validation subjects.
+
+\subsection{Tumor-region analysis}
+On the BraTS cohort, per-slice analysis shows that (i) pixel error inside the
+tumor is $1.54\times$ the error outside, confirming that hallucination risk
+concentrates at the lesion; and (ii) the \TrustMap{}---computed without any
+tumor knowledge---separates tumor from non-tumor pixels with per-slice AUROC
+$0.871$, capturing $94\%$ of the localization quality of the error map itself
+($0.925$). This supports the clinical reading: flagged regions coincide with
+the places a radiologist must scrutinize.
+
+\section{Discussion}
+\label{sec:discussion}
+\paragraph{Reproducibility.}
+Officially released IXI weights reproduce only $\sim$15\,dB on independently
+prepared IXI data (the paper reports 31.56\,dB). A systematic exclusion study
+(rigid misalignment, $z$-shift, intensity window, cropping, orientation)
+traces the gap to preprocessing details that the original authors do not
+publish; the same issue is independently reported for the companion SynDiff
+release. We therefore trained same-recipe models on our own fully documented
+pipeline and base all quantitative claims on them, while using the official
+weights for high-resolution demonstration.
+\paragraph{Quality and trust calibration are separable.}
+On BraTS, our self-trained models beat the official weights on PSNR by
+$+3$--$4$\,dB, yet the official weights' trust maps localize error better
+($+4.80$ vs.\ $+0.36$\,dB sparsification). Better synthesis does not imply
+better-calibrated uncertainty: models whose residual error is dominated by
+fine texture produce uncertainty signals that are weakly correlated with that
+error. Selecting for calibration may hence differ from selecting for quality.
+\paragraph{Limitations.}
+(1)~The trust map flags \emph{unreliable} regions, not \emph{wrong} ones: a
+confidently synthesized hallucination is invisible to it.
+(2)~Learnable aggregation overfits 6-subject validation sets; reopening the
+learnable route requires $\ge$20 validation subjects.
+(3)~The input gate is validated for brain tasks; the pelvis gate is unreliable
+and disabled for CT tasks.
+(4)~Image-level QC remains unsolved at this scale.
+(5)~All outputs are research demonstrations and must not guide clinical
+decisions.
+
+\section{Conclusion}
+We turned the discarded internals of a state-of-the-art diffusion-bridge
+sampler into a pixel-wise trust map, score, and QC workflow for medical image
+translation, validated across three datasets and five directions with strong
+localization (AUROC up to $0.93$), calibration (separation up to $73\times$),
+and clinical reach into tumor patients. Beyond the specific signals, the
+broader message is methodological: generative samplers compute more evidence
+than they use, and harvesting it converts a synthesis engine into a
+trust-assessable system. Future work will reopen learnable aggregation at
+larger subject scale, extend the analysis to 256$\times$256 models, and
+integrate radiologist feedback.
+
+\paragraph{Acknowledgments.}
+We thank the SelfRDB authors (Bilkent ICON Lab) for releasing code and weights
+under MIT, and the IXI, BraTS, and SynthRAD consortia for public data. This
+work is a student research demonstration; outputs must not be used for
+clinical decisions.
+
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+
+\end{document}

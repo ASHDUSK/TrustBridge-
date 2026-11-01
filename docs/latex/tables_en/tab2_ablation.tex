@@ -1,0 +1,21 @@
+% Tab.2 — 7-row ablation (sparsification gain, dB; 60 test slices)
+% Source of truth: docs/12_实验数据整理_论文用_2026-10-12.md, 表2
+\begin{table}[htbp]
+\centering\small
+\caption{Seven-row ablation: $\Delta$PSNR (dB) after dropping the
+least-trusted 20\% of pixels (60 test slices per direction).}
+\label{tab:ablation_en}
+\begin{tabular}{lcc l}
+\toprule
+Scheme & T2$\to$T1 & T1$\to$T2 & Notes \\
+\midrule
+Random & $-0.066$ & $-0.011$ & falsifies the protocol \\
+Gradient/edge & $+0.018$ & $+1.455$ & unsupervised prior baseline \\
+Input-difference$^{\dagger}$ & $+2.022$ & $+0.385$ & GT-leaking reference \\
+RCRF only & $+1.911$ & $+4.660$ & contribution (1) alone \\
+Ensemble only & $+1.932$ & $+4.934$ & contribution (2) alone \\
+\textbf{Fused (0.6/0.4)} & \textbf{+2.136} & \textbf{+5.187} & $\ge$ either single signal \\
+Oracle (uses GT) & $+10.132$ & $+15.031$ & upper-bound reference \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,19 @@
+% Tab.3 — cross-dataset results (CT: 128x2 new slice set, 80 test slices)
+% Source of truth: docs/12_实验数据整理_论文用_2026-10-12.md, 表3
+\begin{table}[htbp]
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\caption{Cross-dataset results. CT slices come from two centers with
+different weightings (A: T1w, C: T2w); weights are center-matched.}
+\label{tab:cross_en}
+\begin{tabular}{llclcccc}
+\toprule
+Dataset & Direction & Weights & $n$ & PSNR (dB) & NCC & Spearman & \makecell{AUROC\\(fused)} \\
+\midrule
+BraTS2018 & FLAIR$\to$T2 & official & 60 & \textbf{24.06$\pm$1.62} & 0.944 & $-0.897$ & \textbf{0.932$\pm$0.029} \\
+Pelvis CT, ctr.\ A (T1w) & T1$\to$CT & official & 80 & 21.24$\pm$2.42 & 0.936 & $-0.673$ & 0.915$\pm$0.031 \\
+Pelvis CT, ctr.\ C (T2w) & T2$\to$CT & official & 80 & 19.04$\pm$0.73 & 0.893 & $-0.626$ & 0.705$\pm$0.033 \\
+Pelvis CT, ctr.\ A (T1w) & T1$\to$CT & self-tr. & 80 & \textbf{24.36$\pm$2.92} & 0.962 & $-0.808$ & 0.869$\pm$0.015 \\
+Pelvis CT, ctr.\ C (T2w) & T2$\to$CT & self-tr. & 80 & \textbf{23.13$\pm$0.83} & 0.961 & $-0.766$ & 0.726$\pm$0.019 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,19 @@
+% Tab.4 — lesion analysis (BraTS2018, 399 slices)
+% Source of truth: docs/12_实验数据整理_论文用_2026-10-12.md, 表4
+\begin{table}[htbp]
+\centering\small
+\caption{Lesion-indication analysis on BraTS2018 (399 slices, unseen by the
+translated model).}
+\label{tab:lesion_en}
+\begin{tabular}{lc}
+\toprule
+Metric & Value \\
+\midrule
+Trust map indicating tumor region, AUROC & \textbf{0.871} \\
+True-error map indicating tumor region, AUROC (reference) & 0.925 \\
+Mean abs.\ error inside vs.\ outside tumor & $1.54\times$ \\
+Mean trust inside vs.\ outside tumor & 0.795 vs.\ 0.725 \\
+Wilcoxon signed-rank test & $p<10^{-300}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
