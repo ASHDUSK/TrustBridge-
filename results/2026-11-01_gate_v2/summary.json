@@ -1,0 +1,89 @@
+{
+  "tau_maha": 388.763141979726,
+  "suites": {
+    "匹配·脑T1→T1源": {
+      "n": 100,
+      "match_rate": 1.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MATCH",
+      "outcome_acc": 1.0
+    },
+    "匹配·脑T2→T2源": {
+      "n": 100,
+      "match_rate": 1.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MATCH",
+      "outcome_acc": 1.0
+    },
+    "匹配·BraTS FLAIR→FLAIR源": {
+      "n": 100,
+      "match_rate": 1.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MATCH",
+      "outcome_acc": 1.0
+    },
+    "匹配·盆腔T1w→CT任务(任一盆腔MRI)": {
+      "n": 80,
+      "match_rate": 0.475,
+      "ood_rate": 0.0,
+      "expected_outcome": "MATCH",
+      "outcome_acc": 0.475
+    },
+    "匹配·盆腔T2w→CT任务(任一盆腔MRI)": {
+      "n": 80,
+      "match_rate": 1.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MATCH",
+      "outcome_acc": 1.0
+    },
+    "错配·盆腔CT喂MRI源任务(域外模态)": {
+      "n": 80,
+      "match_rate": 0.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MISMATCH",
+      "outcome_acc": 1.0
+    },
+    "错配·脑T1喂T2源任务": {
+      "n": 100,
+      "match_rate": 0.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MISMATCH",
+      "outcome_acc": 1.0
+    },
+    "错配·脑T2喂T1源任务": {
+      "n": 100,
+      "match_rate": 0.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MISMATCH",
+      "outcome_acc": 1.0
+    },
+    "错配·脑喂盆腔CT源任务": {
+      "n": 100,
+      "match_rate": 0.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MISMATCH",
+      "outcome_acc": 1.0
+    },
+    "错配·盆腔CT喂脑T2源任务": {
+      "n": 80,
+      "match_rate": 0.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MISMATCH",
+      "outcome_acc": 1.0
+    },
+    "错配·盆腔T1w喂脑FLAIR源任务": {
+      "n": 80,
+      "match_rate": 0.0,
+      "ood_rate": 0.0,
+      "expected_outcome": "MISMATCH",
+      "outcome_acc": 1.0
+    },
+    "OOD·合成探针（噪声/平坦/棋盘/平滑）": {
+      "n": 80,
+      "match_rate": 0.0,
+      "ood_rate": 0.3875,
+      "expected_outcome": "OOD",
+      "outcome_acc": 0.3875
+    }
+  }
+}

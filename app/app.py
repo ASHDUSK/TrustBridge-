@@ -144,15 +144,19 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
     def cb(f, msg):
         progress(f, desc=msg)
 
-    # 输入模态门控（脑任务启用；CT 任务盆腔门控不可靠，跳过——见 docs/08 附录 C）
-    gate_result = None
-    if not task_id.startswith("CT_"):
-        from trustbridge.gate import check as gate_check, gate_for_task
-        gate_result = gate_check(img, src_mod, gate_path=gate_for_task(task_id))
-        if gate_result is not None and not gate_result.get("ok", True):
-            gr.Warning(f"⚠ 输入模态校验未通过：该图像特征更接近 "
-                       f"{'T2' if gate_result.get('prob_t2', 0) > 0.5 else 'T1'} 加权像，"
-                       f"与所选任务的源模态（{src_mod}）不符。结果可能不可靠，请核对任务选择。")
+    # 输入门控 v2：6 类模态/解剖分类 + OOD 拒判（trustbridge/gate_v2.py）
+    # 策略：OOD → 硬拒绝（不合成、不出评分）；MISMATCH → 脑任务硬拒绝 /
+    # CT 任务警示放行（未见患者 T1w 误判率高，见 docs/16 验证矩阵）
+    from trustbridge.gate_v2 import gate_decision
+    gd = gate_decision(img, task_id, src_mod)
+    if gd["action"] == "block":
+        raise gr.Error("🚫 " + gd["message"])
+    if gd["action"] == "warn":
+        gr.Warning("⚠ " + gd["message"])
+    gate_result = None if gd["verdict"] == "SKIP" else {
+        "ok": gd["verdict"] == "MATCH", "verdict": gd["verdict"],
+        "pred_class": gd["pred_class"], "maha": gd["maha"],
+        "expected": gd["expected"]}
 
     try:
         out = translate_single(eng, img, n_ensemble=n_ens, step_skip=skip,
@@ -176,8 +180,10 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
                            input_gate=gate_result)
     extra = {"source_modality": src_mod, "target_modality": tgt_mod}
     if gate_result is not None:
-        extra["input_gate"] = ("PASS" if gate_result.get("ok", True) else "FLAGGED")
-        extra["input_gate_prob_t2"] = gate_result.get("prob_t2")
+        extra["input_gate"] = ("PASS" if gate_result.get("ok", True) else
+                               gate_result.get("verdict", "FLAGGED"))
+        extra["input_gate_pred_class"] = gate_result.get("pred_class")
+        extra["input_gate_maha"] = gate_result.get("maha")
     rpt.compose_report_json(file.name if hasattr(file, "name") else "input",
                             display, res, json_path, metrics=out["metrics"],
                             extra=extra)
@@ -233,21 +239,20 @@ def run_volume(file, task_id, preset, progress=gr.Progress()):
     vol, ref = load_volume(path)
     t0 = time.time()
 
-    # 输入模态门控（取首个含体数据切片校验；CT 任务盆腔门控不可靠，跳过）
+    # 输入门控 v2（取首个含体数据切片校验；与单图一致：OOD/脑任务错配 → 硬拒绝）
     gate_result = None
     gate_note = ""
-    if not task_id.startswith("CT_"):
-        from trustbridge.gate import check as gate_check, gate_for_task
-        body_slice = next((k for k in range(vol.shape[2])
-                           if (vol[:, :, k] > 0.02).mean() > 0.05), None)
-        if body_slice is not None:
-            gate_result = gate_check(vol[:, :, body_slice], src_mod,
-                                     gate_path=gate_for_task(task_id))
-            if gate_result is not None and not gate_result.get("ok", True):
-                gate_note = (f"⚠ **输入模态校验未通过**：该卷特征更接近 "
-                             f"{'T2' if gate_result.get('prob_t2', 0) > 0.5 else 'T1'} 加权像，"
-                             f"与任务源模态（{src_mod}）不符——结果可能不可靠。")
-                gr.Warning(gate_note)
+    from trustbridge.gate_v2 import gate_decision
+    body_slice = next((k for k in range(vol.shape[2])
+                       if (vol[:, :, k] > 0.02).mean() > 0.05), None)
+    if body_slice is not None:
+        gd = gate_decision(vol[:, :, body_slice], task_id, src_mod)
+        if gd["action"] == "block":
+            raise gr.Error("🚫 " + gd["message"])
+        if gd["action"] == "warn":
+            gate_note = "⚠ " + gd["message"]
+            gr.Warning(gate_note)
+        gate_result = None if gd["verdict"] == "SKIP" else {"ok": gd["verdict"] == "MATCH"}
 
     def cb(f, msg):
         progress(f, desc=msg)
@@ -380,17 +385,28 @@ def run_batch(dir_path, files, task_id, preset, low_thresh, max_n,
         progress(float(i) / max(len(paths), 1), desc=f"({i+1}/{len(paths)}) {os.path.basename(p)}")
         try:
             img, _meta = load_image(p)
-            # 输入模态门控：批量里尤其有用——能直接揪出"喂错序列"的病例
-            gate_txt = "skipped"
-            if not task_id.startswith("CT_"):
-                try:
-                    from trustbridge.gate import check as gate_check, gate_for_task
-                    g = gate_check(img, src_mod, gate_path=gate_for_task(task_id))
-                    gate_txt = "PASS" if (g is None or g.get("ok", True)) else "FLAGGED"
-                    if gate_txt == "FLAGGED":
-                        flagged.append(os.path.basename(p))
-                except Exception:
-                    gate_txt = "n/a"
+            # 输入门控 v2：批量里尤其有用——直接拦下"喂错序列"或域外输入的病例
+            # （block 级：不合成、不出评分，只记一行 GATE_BLOCKED）
+            from trustbridge.gate_v2 import gate_decision
+            try:
+                gd = gate_decision(img, task_id, src_mod)
+            except Exception:
+                gd = {"action": "allow", "verdict": "SKIP", "pred_class": None,
+                      "maha": None, "expected": "", "message": "gate error"}
+            if gd["action"] == "block":
+                rows.append({"file": os.path.basename(p), "task": display,
+                             "preset": preset, "input_gate": gd["verdict"],
+                             "trust_score": "", "lowtrust_ratio_pct": "",
+                             "qc_flag": "GATE_BLOCKED",
+                             "n_lowtrust_regions": "", "max_region_pct": "",
+                             "psnr_db": "", "elapsed_s": "", "w_rcrf": "",
+                             "w_unc": "", "lowtrust_thresh": float(low_thresh)})
+                flagged.append(os.path.basename(p))
+                gr.Warning(f"已拦截 {os.path.basename(p)}：{gd['message'][:100]}")
+                continue
+            gate_txt = "PASS" if gd["verdict"] == "MATCH" else gd["verdict"]
+            if gate_txt != "PASS":
+                flagged.append(os.path.basename(p))
             out = translate_single(eng, img, n_ensemble=n_ens, step_skip=skip, seed=0)
             res = out["result"]
             regions = rpt.lowtrust_regions(res.trust_map, float(low_thresh))
