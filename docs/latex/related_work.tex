@@ -1,0 +1,63 @@
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Medical Image Translation}
+Unpaired cross-modality synthesis has evolved from adversarial translation
+---CycleGAN~\cite{zhu2017cyclegan} and pix2pix~\cite{isola2017pix2pix} established
+the unpaired and paired regimes, followed by multi-contrast MRI specialists such
+as conditional GANs~\cite{dar2019cgan} and hybrid CNN--transformers
+(ResViT~\cite{dalmaz2022resvit})---to diffusion-based models. SynDiff
+\cite{ozbey2023syndiff} introduced adversarial diffusion with a cyclic
+consistency prior for unsupervised medical translation, and
+I2I-Galip~\cite{korkmaz2025i2igalip} replaced the discriminator with a
+vision--language model for efficiency. In parallel, bridges connect the two
+image distributions directly rather than through an isotropic-noise bottleneck:
+DDPMs~\cite{ho2020ddpm} and their score-based generalization~\cite{song2021scoresde}
+provide the mathematical backbone, with score-based
+NCSN~\cite{song2019ncsn}, improved schedules~\cite{nichol2021iddpm}, direct
+diffusion bridges with data consistency~\cite{chung2023directbridge}, dual
+implicit bridges~\cite{su2023ddib}, neural Schr{\"o}dinger
+bridges~\cite{kim2024nsb}, and direct iterative inversion~\cite{delbracio2023indi}
+spanning the design space. SelfRDB~\cite{arslan2025selfrdb} combines a soft-prior
+bridge with self-consistent recursive sampling and reports state-of-the-art
+multi-contrast translation, while explicitly leaving \emph{uncertainty
+quantification} of the bridge as an open problem. Our work builds directly on
+this sampler: we keep the model frozen and harvest two signals that SelfRDB
+discards.
+
+\subsection{Uncertainty Quantification in Medical Imaging}
+Per-pixel uncertainty is commonly obtained by MC-Dropout~\cite{gal2016mcdropout},
+deep ensembles~\cite{lakshminarayanan2017ensembles}, or test-time
+augmentation~\cite{ayhan2018tta}; the epistemic/aleatoric taxonomy of
+\cite{kendall2017uncertainties} frames these as sampling-based epistemic
+estimates. Diffusion ensembles follow the same recipe: implicit segmentation
+ensembles~\cite{wolleb2022diffusionensembles} and per-pixel standard deviations
+across diffusion restorations~\cite{osuna2024microscopy} established that
+inter-sample dispersion tracks difficult image regions. We inherit this insight
+but differ in three ways: (i) our ensemble members are sampled from a
+\emph{diffusion bridge} whose stochastic endpoints and latent variables are
+native to the sampler, not injected ad hoc; (ii) we pair ensemble dispersion
+with a second, complementary signal---the convergence residual---that
+is unique to self-consistent recursive samplers and costs nothing; and (iii) we
+fuse both into a calibrated trust map with a clinical QC gate rather than
+reporting dispersion alone. Notably, concurrent bridge models actively
+\emph{suppress} this stochasticity for reconstruction
+\cite{song2024ccbm}; we argue it is an asset when the task is trust assessment,
+even though it is a defect for point synthesis.
+
+\subsection{Hallucination Assessment and Trustworthy Radiology AI}
+Closest to our goal, the Hallucination Index~\cite{tivnan2024hallucinationindex}
+quantifies fabricated content of generative reconstruction models as an
+\emph{image-level} metric over repeated samples; MUMINS~\cite{oliveras2026mumins}
+conditions medical image synthesis on metadata and trains an uncertainty-aware
+prediction head to output a spatial uncertainty map; and the measurement-geometry
+analysis of \cite{jin2026trustworthy} proves when a measurement operator can
+distinguish solutions, explaining hallucination from an operator-design
+perspective. These approaches either require repeated sampling at image
+granularity, architectural modification with retraining, or ex-ante operator
+design. TrustBridge instead derives pixel-level evidence \emph{inside} the
+existing sampler, requires no architectural change or labels, and additionally
+supports rule-based gating: our framework is complementary to output-guardrail
+lifecycles such as RAISE~\cite{cardoso2023raise} and provides the objective,
+pixel-level evidence that reporting frameworks like
+AI-RADS~\cite{fink2026airads} call for, while remaining fully automatic.

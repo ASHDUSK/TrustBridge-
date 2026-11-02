@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-03 01:46:36",
+  "n_slices": 60,
+  "seed": 2026,
+  "protocol": "within-body (FLAIR>0.02)，official FLAIR->T2 256² 权重，N=4",
+  "note": "体区口径复检：旧 +6.95dB 为整图口径，与被撤回的 0.871 同源。",
+  "auroc": {
+    "mean": 0.9113,
+    "std": 0.0373
+  },
+  "spearman": {
+    "mean": -0.1182,
+    "std": 0.1922
+  },
+  "dpsnr10": {
+    "mean": 2.0354,
+    "std": 0.8262
+  },
+  "dpsnr20": {
+    "mean": 3.1231,
+    "std": 0.9543
+  },
+  "dpsnr30": {
+    "mean": 3.477,
+    "std": 0.9517
+  },
+  "decile_sep": {
+    "mean": 2.0867,
+    "std": 1.3403
+  },
+  "body_psnr": {
+    "mean": 18.3058,
+    "std": 1.6835
+  },
+  "trust_score": {
+    "mean": 73.2233,
+    "std": 4.2669
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-03 02:05:07",
+  "n_slices": 180,
+  "tasks": [
+    "2026-11-03_slice_scores_T1_T2",
+    "2026-11-03_slice_scores_T2_T1",
+    "2026-11-03_tumor_sparsify_body"
+  ],
+  "problem_def": "任务内体区PSNR下四分位",
+  "at_75_PASS": {
+    "thresh": 75,
+    "flagged_pct": 0.8833,
+    "recall": 0.8444,
+    "precision": 0.239
+  },
+  "at_55_REVIEW": {
+    "thresh": 55,
+    "flagged_pct": 0.0333,
+    "recall": 0.0222,
+    "precision": 0.1667
+  },
+  "suggested_reject_thresh": {
+    "thresh": 57,
+    "flagged_pct": 0.0944,
+    "recall": 0.1111,
+    "precision": 0.2941
+  },
+  "score_p50": 64.5,
+  "score_p10": 57.1
+}

@@ -1,0 +1,185 @@
+{
+  "date": "2026-11-03 01:42:11",
+  "task": "T2->T1",
+  "n_slices": 60,
+  "seed": 2026,
+  "protocol": "within-body (src>0.02); TTA=4几何增广xN1; noise=σ0.02x4xN1; 等预算40前传",
+  "methods": {
+    "ours_fused": {
+      "spearman": {
+        "mean": -0.1427,
+        "std": 0.0925
+      },
+      "auroc": {
+        "mean": 0.4651,
+        "std": 0.0829
+      },
+      "dpsnr20": {
+        "mean": 0.2094,
+        "std": 0.2658
+      },
+      "dpsnr30": {
+        "mean": 0.3531,
+        "std": 0.3796
+      },
+      "decile_sep": {
+        "mean": 1.3733,
+        "std": 0.4464
+      }
+    },
+    "ours_unc_n4": {
+      "spearman": {
+        "mean": -0.1402,
+        "std": 0.0919
+      },
+      "auroc": {
+        "mean": 0.4979,
+        "std": 0.0844
+      },
+      "dpsnr20": {
+        "mean": 0.5445,
+        "std": 0.3212
+      },
+      "dpsnr30": {
+        "mean": 0.6993,
+        "std": 0.4342
+      },
+      "decile_sep": {
+        "mean": 1.3967,
+        "std": 0.4736
+      }
+    },
+    "ours_rcrf_n4": {
+      "spearman": {
+        "mean": -0.108,
+        "std": 0.0768
+      },
+      "auroc": {
+        "mean": 0.464,
+        "std": 0.0755
+      },
+      "dpsnr20": {
+        "mean": 0.0381,
+        "std": 0.2217
+      },
+      "dpsnr30": {
+        "mean": 0.0565,
+        "std": 0.2817
+      },
+      "decile_sep": {
+        "mean": 1.3283,
+        "std": 0.3555
+      }
+    },
+    "ours_rcrf_n1": {
+      "spearman": {
+        "mean": -0.1056,
+        "std": 0.0734
+      },
+      "auroc": {
+        "mean": 0.4661,
+        "std": 0.0747
+      },
+      "dpsnr20": {
+        "mean": 0.0432,
+        "std": 0.2223
+      },
+      "dpsnr30": {
+        "mean": 0.0457,
+        "std": 0.2876
+      },
+      "decile_sep": {
+        "mean": 1.3017,
+        "std": 0.3279
+      }
+    },
+    "tta_disp": {
+      "spearman": {
+        "mean": -0.1526,
+        "std": 0.1078
+      },
+      "auroc": {
+        "mean": 0.4821,
+        "std": 0.0939
+      },
+      "dpsnr20": {
+        "mean": 0.9455,
+        "std": 0.3709
+      },
+      "dpsnr30": {
+        "mean": 1.2107,
+        "std": 0.5162
+      },
+      "decile_sep": {
+        "mean": 1.61,
+        "std": 0.5253
+      }
+    },
+    "noise_disp": {
+      "spearman": {
+        "mean": -0.0741,
+        "std": 0.0704
+      },
+      "auroc": {
+        "mean": 0.5054,
+        "std": 0.0579
+      },
+      "dpsnr20": {
+        "mean": 0.6203,
+        "std": 0.2958
+      },
+      "dpsnr30": {
+        "mean": 0.7816,
+        "std": 0.4189
+      },
+      "decile_sep": {
+        "mean": 1.2333,
+        "std": 0.3315
+      }
+    },
+    "gradient": {
+      "spearman": {
+        "mean": 0.1527,
+        "std": 0.0834
+      },
+      "auroc": {
+        "mean": 0.578,
+        "std": 0.066
+      },
+      "dpsnr20": {
+        "mean": -0.1502,
+        "std": 0.1377
+      },
+      "dpsnr30": {
+        "mean": -0.179,
+        "std": 0.1981
+      },
+      "decile_sep": {
+        "mean": 0.68,
+        "std": 0.1621
+      }
+    },
+    "random": {
+      "spearman": {
+        "mean": 0.0019,
+        "std": 0.012
+      },
+      "auroc": {
+        "mean": 0.4992,
+        "std": 0.0076
+      },
+      "dpsnr20": {
+        "mean": 0.0087,
+        "std": 0.0482
+      },
+      "dpsnr30": {
+        "mean": -0.0014,
+        "std": 0.0653
+      },
+      "decile_sep": {
+        "mean": 1.01,
+        "std": 0.0539
+      }
+    }
+  }
+}
