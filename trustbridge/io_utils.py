@@ -44,9 +44,83 @@ def load_image(path: str, slice_idx: int | None = None) -> tuple[np.ndarray, dic
         arr = ds.pixel_array.astype(np.float32)
         if arr.ndim == 3:
             arr = arr[0]
-        return _to01(arr), {"format": "dicom", "orig_hw": arr.shape}
+        # Rescale 斜率/截距（CT 等存储原始值，需换算到真实强度）
+        slope = float(getattr(ds, "RescaleSlope", 1.0) or 1.0)
+        inter = float(getattr(ds, "RescaleIntercept", 0.0) or 0.0)
+        if slope != 1.0 or inter != 0.0:
+            arr = arr * slope + inter
+        # MONOCHROME1（白=0）→ 翻转为常规 MONOCHROME2（黑=0）
+        if str(getattr(ds, "PhotometricInterpretation", "MONOCHROME2")).upper() == "MONOCHROME1":
+            lo, hi = float(arr.min()), float(arr.max())
+            if hi > lo:
+                arr = hi - (arr - lo) + lo
+        meta = {"format": "dicom", "orig_hw": arr.shape,
+                "modality": str(getattr(ds, "Modality", "")),
+                "patient_id": str(getattr(ds, "PatientID", "")),
+                "study_date": str(getattr(ds, "StudyDate", ""))}
+        return _to01(arr), meta
 
     raise ValueError(f"不支持的文件类型: {ext}")
+
+
+def save_dicom(pred01: np.ndarray, path: str, source_path: str | None = None,
+               source_mod: str = "", target_mod: str = "") -> str:
+    """翻译结果 → DICOM Secondary Capture（16-bit 灰度，全量程线性映射）。
+
+    source_path 给定时继承患者/检查标签便于追溯；翻译图像标记 OT 模态
+    （符合 DICOM 对派生图像的规范，避免与真实采集模态混淆）。
+    """
+    import datetime
+
+    import pydicom
+    from pydicom.dataset import Dataset, FileMetaDataset
+    from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+
+    pred = np.clip(np.asarray(pred01, dtype=np.float32), 0.0, 1.0)
+    pixels = (pred * 65535.0).astype(np.uint16)
+
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"   # Secondary Capture
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    ds = Dataset()
+    ds.file_meta = meta
+    ds.SOPClassUID = meta.MediaStorageSOPClassUID
+    ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+    ds.StudyInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.Modality = "OT"                       # 派生图像
+    ds.SeriesDescription = f"TrustBridge translation {source_mod}->{target_mod}".strip()
+    ds.PatientName = "ANONYMOUS"
+    ds.PatientID = "ANONYMOUS"
+    if source_path and os.path.exists(source_path):
+        try:
+            src = pydicom.dcmread(source_path, stop_before_pixels=True)
+            for tag in ("PatientName", "PatientID", "StudyDate"):
+                if tag in src:
+                    ds[tag].value = src[tag].value
+            if "StudyInstanceUID" in src:
+                ds.StudyInstanceUID = src.StudyInstanceUID      # 归入原检查
+        except Exception:
+            pass
+    ds.ContentDate = datetime.date.today().strftime("%Y%m%d")
+    ds.ContentTime = datetime.datetime.now().strftime("%H%M%S")
+    ds.ImageComments = ("Derived by TrustBridge (diffusion-bridge translation); "
+                        "research demonstration, NOT for clinical use")
+    ds.Rows, ds.Columns = pixels.shape
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0                                  # unsigned
+    ds.RescaleSlope = f"{1.0 / 65535.0:.9g}"   # DS 字符串最长 16 字符（指数形式）
+    ds.RescaleIntercept = "0"
+    ds.PixelData = pixels.tobytes()
+    # 传输语法已在 file_meta（ExplicitVRLittleEndian）；pydicom 3 弃用 is_little_endian/is_implicit_VR
+    ds.save_as(path, enforce_file_format=True)
+    return path
 
 
 def load_volume(path: str) -> tuple[np.ndarray, object]:

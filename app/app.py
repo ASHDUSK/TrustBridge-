@@ -115,9 +115,9 @@ def _score_html(res, low_thresh: float = 0.6) -> str:
         f"<div style='font-size:12px;color:#666;margin-top:2px;'>"
         f"参考总分 Trust Score {res.trust_score:.1f}/100（全图信任均值）</div>"
         f"<div style='font-size:11.5px;color:#888;margin-top:4px;line-height:1.45;'>"
-        f"图像级简单聚合与真实误差的相关性有限（IXI +0.37 / CT −0.63，已记入 limitation），"
-        f"请以像素级信任图与低信任区域占比为准；"
-        f"阈值 PASS≥75 / REVIEW≥55 为演示默认值，未经临床标定。</div>"
+        f"图像级简单聚合与切片质量的相关性弱且方向不一致（r = −0.22 / +0.33 / −0.10，"
+        f"见论文「图像级 QC 操作点分析」），请以像素级信任图与低信任区域占比为准；"
+        f"阈值 PASS≥75 / REVIEW≥55 为演示默认值，未经临床标定，需按部署重新整定。</div>"
         f"</div></div>"
     )
 
@@ -164,6 +164,9 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
     except RuntimeError as e:
         low = str(e).lower()
         if "out of memory" in low or ("cuda" in low and "memory" in low):
+            import torch as _t
+            if _t.cuda.is_available():
+                _t.cuda.empty_cache()   # 清理显存碎片，避免后续每次点击都失败
             raise gr.Error("显存不足（OOM）：请改用「快速」或「平衡」档位、缩小输入尺寸，"
                            "或关闭其它占用显存的程序后重试。")
         raise gr.Error("推理失败：%s" % str(e)[:200])
@@ -200,6 +203,33 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
             json.dump({"lowtrust_thresh": float(low_thresh), "regions": regions},
                       f, ensure_ascii=False, indent=2)
 
+    # 可归档 PDF 报告（P1 报告图 + P2 结构化摘要/低信任区域清单）
+    pdf_path = os.path.join(sdir, "qc_report.pdf")
+    try:
+        rpt.compose_report_pdf(img, pred, res, pdf_path, gt01=gt01,
+                               low_thresh=float(low_thresh),
+                               source_mod=src_mod, target_mod=tgt_mod,
+                               input_gate=gate_result,
+                               source_file=file.name if hasattr(file, "name") else str(file),
+                               task_id=display, metrics=out["metrics"],
+                               regions=regions)
+    except Exception as e:
+        pdf_path = None
+        gr.Warning(f"PDF 报告生成失败（不影响其它输出）：{str(e)[:80]}")
+
+    # 翻译结果 DICOM 导出（Secondary Capture；源为 DICOM 时继承患者/检查标签）
+    src_path = file.name if hasattr(file, "name") else str(file)
+    dcm_path = os.path.join(sdir, "translated_%s.dcm"
+                            % tgt_mod.replace("+", ""))
+    try:
+        from trustbridge.io_utils import save_dicom
+        save_dicom(pred, dcm_path, source_path=src_path
+                   if str(src_path).lower().endswith(".dcm") else None,
+                   source_mod=src_mod, target_mod=tgt_mod)
+    except Exception as e:
+        dcm_path = None
+        gr.Warning(f"DICOM 导出失败（不影响其它输出）：{str(e)[:80]}")
+
     gallery = [
         (img, "源图像"),
         (pred, f"翻译结果 ({tgt_mod})"),
@@ -210,6 +240,13 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
     dev = getattr(eng, "device", "?")
     metric_txt = (f"**设备** {dev}  ·  **耗时** {res.elapsed_s:.1f}s  ·  "
                   f"**融合权重** w_rcrf={res.w_used[0]} / w_unc={res.w_used[1]}\n\n")
+    if gate_result is not None:
+        if gate_result.get("ok", True):
+            metric_txt += "**输入门控：✅ 通过**（六类模态/解剖校验 + OOD 检验）\n\n"
+        else:
+            metric_txt += (f"**输入门控：⚠ 未通过**（判定 {gate_result.get('verdict', 'MISMATCH')}，"
+                           f"预测类别 {gate_result.get('pred_class')}，任务期望 "
+                           f"{gate_result.get('expected')}）——结果已按策略放行并标注，请核对任务选择\n\n")
     metric_txt += "未提供参考真值（演示模式）" if not out["metrics"] else \
         f"PSNR = {out['metrics']['psnr']} dB   ·   SSIM = {out['metrics']['ssim']} %（官方口径）"
     if regions:
@@ -223,7 +260,7 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
     else:
         metric_txt += f"\n\n未检出显著低信任连通区域（阈值 {float(low_thresh):.2f}）"
     return (gallery, _score_html(res, float(low_thresh)), metric_txt,
-            png_path, json_path)
+            png_path, json_path, pdf_path, dcm_path)
 
 
 def run_volume(file, task_id, preset, progress=gr.Progress()):
@@ -263,6 +300,9 @@ def run_volume(file, task_id, preset, progress=gr.Progress()):
     except RuntimeError as e:
         low = str(e).lower()
         if "out of memory" in low or ("cuda" in low and "memory" in low):
+            import torch as _t
+            if _t.cuda.is_available():
+                _t.cuda.empty_cache()
             raise gr.Error("显存不足（OOM）：整卷模式建议用「快速」档位，或先跑单张切片预览。")
         raise gr.Error("整卷推理失败：%s" % str(e)[:200])
     except Exception as e:
@@ -293,7 +333,7 @@ def run_volume(file, task_id, preset, progress=gr.Progress()):
     ax.plot(zs, scores, marker="o", ms=3, color="#2563eb")
     ax.set_xlabel("轴位切片 z"); ax.set_ylabel("Trust Score")
     ax.set_ylim(0, 100); ax.grid(alpha=0.3)
-    ax.set_title("逐层 Trust Score（低于 55 建议人工复核）")
+    ax.set_title("逐层 Trust Score（低于 55 建议人工复核 · 演示默认阈值，未临床标定）")
     fig2.tight_layout()
     score_path = os.path.join(sdir, "volume_trust_scores.png")
     fig2.savefig(score_path, dpi=130); plt.close(fig2)
@@ -505,6 +545,13 @@ ABOUT = f"""
 | **② 随机桥集成不确定性** | N 次独立桥采样（不同噪声种子/生成器 latent）取逐像素标准差，刻画输出稳定性 |
 | **③ 信任图与质控报告** | ①②融合为逐像素信任图 → 低信任区域占比 + 可信度分布 → PASS / REVIEW / REJECT 质控建议 + 可归档报告 |
 | **④ 步长跳跃推理加速（skip2）** | 隔步采集信任信号，前向次数 40→24：**耗时省约 39%，定位质量持平**（消融实测）。原块级自适应递归方案经 60 片独立复核无增益（−0.05 dB、耗时 2.7 倍），已归档，不作为创新点 |
+| **⑤ 六类输入门控 + 域外拒绝** | 合成**之前**核对输入模态/解剖部位：6 类分类 + Mahalanobis OOD 检验 + 平坦图硬规则。1,160 例验证矩阵中 **562 例非法/域外输入 0 漏放、合法输入 0 误拒**——错模态与噪声图会被硬拒绝，不产生任何评分 |
+| **⑥ DICOM 进出 + PDF 报告** | 支持 DICOM 读取（Rescale/倒相）与翻译结果 DICOM 导出（Secondary Capture，继承患者标签）；质控报告可导出可打印 PDF（P1 报告图 + P2 结构化摘要），支持科室归档 |
+
+**已验证的关键结果**（体掩码口径，详见论文 v0.3）：
+T1→T2 自训模型定位高误差十分位 AUROC **0.78**（单链 CReF 零成本 0.75）；真实肿瘤患者（官方权重）**0.91**、剔除最低信任 20% 体素 PSNR **+3.1 dB**；等预算基线对照齐全（TTA/输入噪声）。
+
+**已知边界（诚实声明）**：信任图标记"不可靠"而非"错误"（自信的幻觉不可见）；T2→T1 上全部分歧类信号≈随机（残差误差纹理主导）；信任**不**定位肿瘤（0.51）；图像级信任分与切片质量相关弱且方向不一致（r = −0.22/+0.33/−0.10）；三级 QC 门槛为演示默认值，需按部署重新整定。
 
 **典型场景**：MRI 缺失序列补全（T1↔T2/PD）、MRI→sCT（放疗参考）、AI 合成结果质控归档。
 
@@ -582,9 +629,12 @@ def build_ui():
                     with gr.Row():
                         f1 = gr.File(label="质控报告 PNG")
                         f2 = gr.File(label="质控报告 JSON")
+                    with gr.Row():
+                        f3 = gr.File(label="质控报告 PDF（可打印归档）")
+                        f4 = gr.File(label="翻译结果 DICOM 下载")
             btn.click(run_single,
                       inputs=[inp, task, preset, low, gt, seed, slice_k],
-                      outputs=[gallery, score, metric, f1, f2])
+                      outputs=[gallery, score, metric, f1, f2, f3, f4])
 
         with gr.Tab("🧠 整卷翻译 (NIfTI)"):
             with gr.Row():
@@ -665,7 +715,25 @@ def build_ui():
     return demo
 
 
+def _preload_default_engine():
+    """启动后后台预载默认任务引擎，消除评委首次点击的冷启动等待。"""
+    import threading
+
+    def _load():
+        try:
+            ok = available_tasks()
+            t = "T2->T1" if "T2->T1" in ok else (ok[0] if ok else None)
+            if t:
+                get_engine(t)
+                print(f"[preload] engine ready: {t}")
+        except Exception as e:
+            print("[preload] skipped:", e)
+
+    threading.Thread(target=_load, daemon=True).start()
+
+
 if __name__ == "__main__":
+    _preload_default_engine()
     demo = build_ui()
     demo.queue(default_concurrency_limit=1)  # 单 GPU 串行
     demo.launch(server_name="127.0.0.1", server_port=7860, show_error=True, inbrowser=True)

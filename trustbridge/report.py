@@ -108,11 +108,11 @@ def lowtrust_regions(trust_map: np.ndarray, low_thresh: float = 0.6,
     return out[:top_k]
 
 
-def compose_report_png(source01, pred01, result, path, gt01=None,
-                       low_thresh: float = 0.6,
-                       source_mod: str = "源", target_mod: str = "目标",
-                       input_gate: dict | None = None):
-    """2×3 报告图：源 | 翻译 | 信任热图 | 叠加 | 误差(可选) | 收敛曲线。"""
+def _report_figure(source01, pred01, result, gt01=None,
+                   low_thresh: float = 0.6,
+                   source_mod: str = "源", target_mod: str = "目标",
+                   input_gate: dict | None = None):
+    """构建 2×3 质控报告图（源|翻译|信任热图|叠加|误差|收敛曲线），返回 fig。"""
     n_err = gt01 is not None
     fig, axes = plt.subplots(2, 3, figsize=(13.5, 9.2))
     title = "TrustBridge 可信翻译质控报告"
@@ -168,8 +168,80 @@ def compose_report_png(source01, pred01, result, path, gt01=None,
              f"集成 N={result.n_ensemble} · 步跳={result.step_skip} · 耗时 {result.elapsed_s:.1f}s",
              ha="center", fontsize=11, color=flag_c, fontweight="bold")
     fig.tight_layout(rect=[0, 0.035, 1, 0.965])
+    return fig
+
+
+def compose_report_png(source01, pred01, result, path, gt01=None,
+                       low_thresh: float = 0.6,
+                       source_mod: str = "源", target_mod: str = "目标",
+                       input_gate: dict | None = None):
+    """2×3 质控报告图 → PNG。"""
+    fig = _report_figure(source01, pred01, result, gt01=gt01,
+                         low_thresh=low_thresh, source_mod=source_mod,
+                         target_mod=target_mod, input_gate=input_gate)
     fig.savefig(path, dpi=150)
     plt.close(fig)
+
+
+def compose_report_pdf(source01, pred01, result, path, gt01=None,
+                       low_thresh: float = 0.6,
+                       source_mod: str = "源", target_mod: str = "目标",
+                       input_gate: dict | None = None,
+                       source_file: str = "", task_id: str = "",
+                       metrics: dict | None = None, regions=None):
+    """可归档 PDF 质控报告（两页）：P1 报告图，P2 结构化摘要与低信任区域清单。
+
+    与 PNG 同一图像源（_report_figure），外加一页文本，便于打印与科室归档。
+    """
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    fig = _report_figure(source01, pred01, result, gt01=gt01,
+                         low_thresh=low_thresh, source_mod=source_mod,
+                         target_mod=target_mod, input_gate=input_gate)
+    flag_c = FLAG_COLOR.get(result.qc_flag, "#555")
+    with PdfPages(path) as pdf:
+        pdf.savefig(fig, dpi=150)
+        plt.close(fig)
+
+        # ---- 第 2 页：结构化摘要 ----
+        pg = plt.figure(figsize=(8.27, 11.69))          # A4
+        pg.text(0.5, 0.955, "TrustBridge 可信翻译质控报告 · 摘要",
+                ha="center", fontsize=15, fontweight="bold")
+        lines = [
+            f"源文件：{os.path.basename(source_file) or '—'}    任务：{task_id or '—'}",
+            f"源模态 → 目标模态：{source_mod} → {target_mod}",
+            "",
+            f"Trust Score：{result.trust_score:.1f} / 100（图像级参考值；"
+            f"与切片质量相关有限，请以像素级信任图为准）",
+            f"低信任区域占比：{result.lowtrust_ratio:.1f}%（阈值 trust < {low_thresh}）",
+            f"质控建议：{result.qc_flag}（{FLAG_TEXT.get(result.qc_flag, '')}）",
+            f"集成 N={result.n_ensemble} · 步跳={result.step_skip} · 耗时 {result.elapsed_s:.1f}s",
+        ]
+        if input_gate is not None:
+            g = "通过" if input_gate.get("ok", True) else "未通过"
+            lines.append(f"输入门控：{g}"
+                         + (f"（判定 {input_gate.get('verdict', '')}，"
+                            f"预测类别 {input_gate.get('pred_class', '—')}）"
+                            if input_gate.get("verdict") else "（模态不符，结果不可靠）"))
+        if metrics:
+            lines += ["", "质量指标（官方协议，仅评估用）："]
+            lines += [f"  {k.upper()} = {v}" for k, v in metrics.items()]
+        if regions:
+            lines += ["", f"低信任区域清单（Top {len(regions)}，按面积排序）："]
+            for r in regions[:6]:
+                lines.append(f"  质心({r['质心(行,列)']})  面积 {r['面积(px)']}px  "
+                             f"占比 {r['占比(%)']}%  区域平均信任 {r['区域平均信任']}")
+        lines += ["", "生成时间：" + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
+        y = 0.90
+        for ln in lines:
+            pg.text(0.08, y, ln, fontsize=11.5, color="#111",
+                    va="top", family=plt.rcParams["font.sans-serif"][0])
+            y -= 0.035 if ln else 0.02
+        pg.text(0.5, 0.05,
+                "合成结果仅供科研参考，不能直接用于临床诊断决策；低信任区域提示模型可能产生幻觉，建议人工复核。",
+                ha="center", fontsize=10, color=flag_c, fontweight="bold")
+        pdf.savefig(pg)
+        plt.close(pg)
 
 
 def compose_report_json(source_name, task_id, result, path, metrics=None,
