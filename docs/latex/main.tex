@@ -23,6 +23,9 @@
 \newcommand{\TrustMap}{trust map}
 \newcommand{\TrustScore}{Trust Score}
 
+% 标题双轨：参赛/工作台用方法标题（下）；投刊（BSPC/CBM 档）建议换用框架标题：
+% "Rethinking Uncertainty in Medical Image Translation: Convergence Residuals,
+%  Evaluation Protocols, and Quality Control for Diffusion-Bridge Synthesis"
 \title{TrustBridge: Trust-Map Quantification for Diffusion-Bridge\\
 Medical Image Translation via Convergence Residual Fields}
 
@@ -397,6 +400,38 @@ air negatives, and mean trust is in fact slightly \emph{higher} inside tumors,
 $0.772$ vs.\ $0.727$ outside). Flagged regions indicate where the model is
 unsure about its synthesis, not where pathology is.
 
+\subsection{Stress tests: input degradation and cross-institution transfer}
+\label{sec:exp-stress}
+\paragraph{Input degradation.}
+We degrade the input along three axes---Gaussian blur ($\sigma\in\{0.5,1,2\}$),
+Gaussian noise ($\sigma\in\{0.01,0.03,0.06,0.1\}$), and horizontal misalignment
+(2--8\,px)---over 30 IXI test slices per dose. Translation quality degrades
+mildly (body PSNR $12.9\to11.8$\,dB at the worst dose). The response of our
+trust machinery is asymmetric and instructive: the \emph{input gate's}
+Mahalanobis distance fires dose-dependently for blur ($2.9\to15.0$) and noise
+($\to9.3$) but is blind to small misalignment ($\to2.9$); the \emph{trust map}
+does not flag degraded inputs at all---moderate blur actually \emph{raises}
+mean trust ($0.63\to0.70$), because a smoother input is easier for the sampler
+to be self-consistent about---and the within-body localization AUROC decays
+with dose ($0.79\to0.70$ under noise; $\to0.67$ under misalignment).
+Knowing-what-you-don't-know here is carried by the \emph{input gate}, not the
+trust map; misalignment detection remains open (we discuss this in
+\S\ref{sec:discussion}).
+\paragraph{Cross-institution transfer.}
+The strongest external objection to sampler-native trust evidence is that it
+may be locked to the training cohort. We therefore evaluate the identical
+pipeline (official FLAIR$\to$T2 weights, identical protocol, never-seen
+subjects) on two held-out sets from BraTS2018 raw data: six patients from the
+same collection as our reference cohort (patient-level generalization) and six
+\texttt{CBICA} validation subjects prepared by a different institution
+(institution-level generalization), 120 slices each. Trust localization
+\emph{transfers}: AUROC $0.863\pm0.155$ (held-out patients) and
+$0.950\pm0.021$ (cross-institution) versus $0.911\pm0.037$ on the reference
+cohort, with sparsification gains $+2.78$ and $+3.12$\,dB respectively. The
+caveats are real---same preprocessing recipe on our side, six subjects per
+set---but the direction is clear: within this cohort family, the signals are
+not an artifact of having seen the patients.
+
 \section{Discussion}
 \label{sec:discussion}
 \paragraph{Reproducibility.}
@@ -434,7 +469,7 @@ $52.5\%$ of cases, so hard blocking would reject half of the valid inputs;
 the Mahalanobis OOD threshold is additionally inflated by cross-scanner
 domain shift, leaving some structured synthetic probes to the classifier
 layer rather than the distance test.
-(4)~Image-level QC and tumor localization remain unsolved at this scale.
+(4)~Image-level QC and tumor localization remain unsolved at this scale; the trust map additionally does not respond to input degradation---blur even raises it (\Sef{sec:exp-stress})---so degraded-input detection relies on the input gate, and small misalignments evade both.
 (5)~The three-tier gate thresholds require per-deployment re-tuning
 (\S\ref{sec:exp}).
 (6)~All outputs are research demonstrations and must not guide clinical

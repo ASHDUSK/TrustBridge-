@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-04 00:25:09",
+  "seed": 2026,
+  "reference_A_original_6": {
+    "auroc": 0.9113,
+    "dpsnr20": 3.1231,
+    "note": "results/2026-11-03_tumor_sparsify_body"
+  },
+  "sets": {
+    "B_same_collection_heldout": {
+      "n_slices": 120,
+      "n_subjects": 6,
+      "auroc": {
+        "mean": 0.8632,
+        "std": 0.1553
+      },
+      "dpsnr20": {
+        "mean": 2.777,
+        "std": 0.963
+      },
+      "decile_sep": 2.48,
+      "body_psnr": {
+        "mean": 16.89,
+        "std": 3.19
+      }
+    },
+    "C_cross_institution_cbica": {
+      "n_slices": 120,
+      "n_subjects": 6,
+      "auroc": {
+        "mean": 0.9495,
+        "std": 0.0214
+      },
+      "dpsnr20": {
+        "mean": 3.118,
+        "std": 0.808
+      },
+      "decile_sep": 3.96,
+      "body_psnr": {
+        "mean": 21.72,
+        "std": 1.7
+      }
+    }
+  }
+}

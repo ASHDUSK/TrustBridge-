@@ -1,0 +1,96 @@
+{
+  "date": "2026-11-04 00:06:30",
+  "task": "T1->T2",
+  "n_slices": 30,
+  "seed": 2026,
+  "conditions": {
+    "none_0": {
+      "body_psnr": 12.89,
+      "trust_mean": 0.6301,
+      "auroc": 0.7864,
+      "decile_sep": 1.98,
+      "maha_mean": 2.9,
+      "ood_rate": 0.0
+    },
+    "blur_0.5": {
+      "body_psnr": 12.83,
+      "trust_mean": 0.6419,
+      "auroc": 0.7954,
+      "decile_sep": 1.9,
+      "maha_mean": 3.6,
+      "ood_rate": 0.0
+    },
+    "blur_1.0": {
+      "body_psnr": 12.55,
+      "trust_mean": 0.6706,
+      "auroc": 0.8107,
+      "decile_sep": 1.66,
+      "maha_mean": 7.9,
+      "ood_rate": 0.0
+    },
+    "blur_2.0": {
+      "body_psnr": 12.33,
+      "trust_mean": 0.7027,
+      "auroc": 0.7846,
+      "decile_sep": 1.35,
+      "maha_mean": 15.0,
+      "ood_rate": 0.0
+    },
+    "noise_0.01": {
+      "body_psnr": 12.86,
+      "trust_mean": 0.6277,
+      "auroc": 0.7872,
+      "decile_sep": 2.03,
+      "maha_mean": 2.8,
+      "ood_rate": 0.0
+    },
+    "noise_0.03": {
+      "body_psnr": 12.8,
+      "trust_mean": 0.6054,
+      "auroc": 0.7779,
+      "decile_sep": 1.98,
+      "maha_mean": 4.5,
+      "ood_rate": 0.0
+    },
+    "noise_0.06": {
+      "body_psnr": 12.36,
+      "trust_mean": 0.5668,
+      "auroc": 0.7454,
+      "decile_sep": 1.74,
+      "maha_mean": 4.6,
+      "ood_rate": 0.0
+    },
+    "noise_0.1": {
+      "body_psnr": 12.14,
+      "trust_mean": 0.5643,
+      "auroc": 0.7033,
+      "decile_sep": 1.51,
+      "maha_mean": 9.3,
+      "ood_rate": 0.0
+    },
+    "shift_2": {
+      "body_psnr": 12.48,
+      "trust_mean": 0.6326,
+      "auroc": 0.7593,
+      "decile_sep": 1.73,
+      "maha_mean": 2.9,
+      "ood_rate": 0.0
+    },
+    "shift_4": {
+      "body_psnr": 12.05,
+      "trust_mean": 0.6401,
+      "auroc": 0.7143,
+      "decile_sep": 1.22,
+      "maha_mean": 2.9,
+      "ood_rate": 0.0
+    },
+    "shift_8": {
+      "body_psnr": 11.78,
+      "trust_mean": 0.6562,
+      "auroc": 0.6681,
+      "decile_sep": 1.1,
+      "maha_mean": 2.9,
+      "ood_rate": 0.0
+    }
+  }
+}

@@ -207,6 +207,20 @@ lifecycles such as RAISE&lt;sup&gt;[26]&lt;/sup&gt; and provides the objective,
 pixel-level evidence that reporting frameworks like
 AI-RADS&lt;sup&gt;[27]&lt;/sup&gt; call for, while remaining fully automatic.
 
+<h4>Beyond sampling dispersion: semantic and pathology-aware signals.</h4>
+Dispersion-style evidence is blind to errors the sampler makes
+<em>consistently</em>—a limitation we quantify in §?. Three
+concurrent research lines attack this from the evaluation side and mark the
+natural next step for trust layers like ours. CRAFT&lt;sup&gt;[28]&lt;/sup&gt;
+scores generated images against clinical criteria with a foundation-model
+Clinical Alignment Score, reducing hallucination-like content; ViCTr&lt;sup&gt;[29]&lt;/sup&gt;
+makes synthesis pathology-aware with graded severity control via EWC-regularized
+LoRA adaptation; and DDWM&lt;sup&gt;[30]&lt;/sup&gt; achieves zero-shot translation by
+learning only the target-domain distribution and fusing domain-invariant
+anatomy through wavelet decomposition. All three require either foundation
+models, retraining, or architectural change; they are complementary to
+sampler-native evidence and are discussed as future work in §?.
+
 
 <h2>4. Method</h2>
 \label{sec:method}
@@ -285,12 +299,12 @@ pelvic T1w slices are confused with brain classes in $52.5\%$ of cases
 
 <h3>5.1 Setup</h3>
 <h4>Datasets.</h4>
-<b>IXI</b>&lt;sup&gt;[28]&lt;/sup&gt;: 40 healthy subjects (T1/T2/PD), subject-wise
+<b>IXI</b>&lt;sup&gt;[31]&lt;/sup&gt;: 40 healthy subjects (T1/T2/PD), subject-wise
 split 26/6/8 with no subject overlap; $4{,}000{+}$ paired axial slices under
 the official protocol (per-slice statistics, official mean-norm PSNR/SSIM).
-<b>BraTS2018</b>&lt;sup&gt;[29]&lt;/sup&gt;: 6 HGG patients (60 evaluated
+<b>BraTS2018</b>&lt;sup&gt;[32]&lt;/sup&gt;: 6 HGG patients (60 evaluated
 tumor-bearing slices) with real co-registered T2 ground truth and tumor
-segmentation; source FLAIR. <b>SynthRAD2023 pelvis</b>&lt;sup&gt;[30]&lt;/sup&gt;:
+segmentation; source FLAIR. <b>SynthRAD2023 pelvis</b>&lt;sup&gt;[33]&lt;/sup&gt;:
 10 patients, center-matched T1w→CT and T2w→CT, 80 test slices each.
 <h4>Models.</h4>
 Two self-trained 128×128 bridges (T2→T1 and T1→T2, 30 epochs,
@@ -422,6 +436,38 @@ air negatives, and mean trust is in fact slightly <em>higher</em> inside tumors,
 $0.772$ vs.\ $0.727$ outside). Flagged regions indicate where the model is
 unsure about its synthesis, not where pathology is.
 
+<h3>5.8 Stress tests: input degradation and cross-institution transfer</h3>
+\label{sec:exp-stress}
+<h4>Input degradation.</h4>
+We degrade the input along three axes—Gaussian blur ($\sigma\in\{0.5,1,2\}$),
+Gaussian noise ($\sigma\in\{0.01,0.03,0.06,0.1\}$), and horizontal misalignment
+(2–8 px)—over 30 IXI test slices per dose. Translation quality degrades
+mildly (body PSNR $12.9\to11.8$ dB at the worst dose). The response of our
+trust machinery is asymmetric and instructive: the <em>input gate's</em>
+Mahalanobis distance fires dose-dependently for blur ($2.9\to15.0$) and noise
+($\to9.3$) but is blind to small misalignment ($\to2.9$); the <em>trust map</em>
+does not flag degraded inputs at all—moderate blur actually <em>raises</em>
+mean trust ($0.63\to0.70$), because a smoother input is easier for the sampler
+to be self-consistent about—and the within-body localization AUROC decays
+with dose ($0.79\to0.70$ under noise; $\to0.67$ under misalignment).
+Knowing-what-you-don't-know here is carried by the <em>input gate</em>, not the
+trust map; misalignment detection remains open (we discuss this in
+§?).
+<h4>Cross-institution transfer.</h4>
+The strongest external objection to sampler-native trust evidence is that it
+may be locked to the training cohort. We therefore evaluate the identical
+pipeline (official FLAIR→T2 weights, identical protocol, never-seen
+subjects) on two held-out sets from BraTS2018 raw data: six patients from the
+same collection as our reference cohort (patient-level generalization) and six
+<code>CBICA</code> validation subjects prepared by a different institution
+(institution-level generalization), 120 slices each. Trust localization
+<em>transfers</em>: AUROC $0.863\pm0.155$ (held-out patients) and
+$0.950\pm0.021$ (cross-institution) versus $0.911\pm0.037$ on the reference
+cohort, with sparsification gains $+2.78$ and $+3.12$ dB respectively. The
+caveats are real—same preprocessing recipe on our side, six subjects per
+set—but the direction is clear: within this cohort family, the signals are
+not an artifact of having seen the patients.
+
 <h2>6. Discussion</h2>
 \label{sec:discussion}
 <h4>Reproducibility.</h4>
@@ -459,7 +505,8 @@ $52.5\%$ of cases, so hard blocking would reject half of the valid inputs;
 the Mahalanobis OOD threshold is additionally inflated by cross-scanner
 domain shift, leaving some structured synthetic probes to the classifier
 layer rather than the distance test.
-(4) Image-level QC and tumor localization remain unsolved at this scale.
+(4) Image-level QC and tumor localization remain unsolved at this scale; the trust map additionally does not respond to input degradation—blur even raises it (§
+ef{sec:exp-stress})—so degraded-input detection relies on the input gate, and small misalignments evade both.
 (5) The three-tier gate thresholds require per-deployment re-tuning
 (§?).
 (6) All outputs are research demonstrations and must not guide clinical
@@ -495,5 +542,5 @@ clinical decisions.
 
 
 <h2>References</h2>
-<ol class="refs"><li>Ho et al. (2020). Denoising Diffusion Probabilistic Models. <i>Advances in Neural Information Processing Systems</i>.</li><li>Nichol et al. (2021). Improved Denoising Diffusion Probabilistic Models. <i>International Conference on Machine Learning</i>.</li><li>Arslan et al. (2025). Self-Consistent Recursive Diffusion Bridge for Medical Image Translation. <i>Medical Image Analysis</i>.</li><li>Tivnan et al. (2024). Hallucination Index: An Image Quality Metric for Generative Reconstruction Models. <i>Medical Image Computing and Computer Assisted Intervention (MICCAI)</i>.</li><li>Zhu et al. (2017). Unpaired Image-to-Image Translation Using Cycle-Consistent Adversarial Networks. <i>IEEE International Conference on Computer Vision</i>.</li><li>Isola et al. (2017). Image-to-Image Translation with Conditional Adversarial Networks. <i>IEEE Conference on Computer Vision and Pattern Recognition</i>.</li><li>Dar et al. (2019). Image Synthesis in Multi-Contrast {MRI} with Conditional Generative Adversarial Networks. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Dalmaz et al. (2022). ResViT}: Residual Vision Transformers for Multi-Modal Medical Image Synthesis. <i>IEEE Transactions on Medical Imaging</i>.</li><li>\"O}zbey et al. (2023). Unsupervised Medical Image Translation with Adversarial Diffusion Models. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Korkmaz et al. (2025). I2I-Galip}: Unsupervised Medical Image Translation Using Generative Adversarial {CLIP. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Song et al. (2020). Score-Based Generative Modeling through Stochastic Differential Equations. <i>arXiv:2011.13456</i>.</li><li>Song et al. (2019). Generative Modeling by Estimating Gradients of the Data Distribution. <i>Advances in Neural Information Processing Systems</i>.</li><li>Chung et al. (2023). Direct Diffusion Bridge Using Data Consistency for Inverse Problems. <i>arXiv:2305.19809</i>.</li><li>Su et al. (2023). Dual Diffusion Implicit Bridges for Image-to-Image Translation. <i>arXiv:2203.08382</i>.</li><li>Kim et al. (2024). Unpaired Image-to-Image Translation via Neural {S}chr{\"o}dinger Bridge. <i>International Conference on Learning Representations</i>.</li><li>Delbracio et al. (2023). Inversion by Direct Iteration: An Alternative to Denoising Diffusion for Image Restoration. <i>Transactions on Machine Learning Research</i>.</li><li>Gal et al. (2016). Dropout as a {B}ayesian Approximation: Representing Model Uncertainty in Deep Learning. <i>International Conference on Machine Learning</i>.</li><li>Lakshminarayanan et al. (2017). Simple and Scalable Predictive Uncertainty Estimation Using Deep Ensembles. <i>Advances in Neural Information Processing Systems</i>.</li><li>Ayhan et al. (2018). Test-Time Data Augmentation for Estimation of Heteroscedastic Aleatoric Uncertainty in Deep Neural Networks. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Kendall et al. (2017). What Uncertainties Do We Need in {B}ayesian Deep Learning for Computer Vision?. <i>Advances in Neural Information Processing Systems</i>.</li><li>Wolleb et al. (2022). Diffusion Models for Implicit Image Segmentation Ensembles. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Osuna-Vargas et al. (2024). Denoising Diffusion Models for High-Resolution Microscopy Image Restoration. <i>arXiv:2409.12078</i>.</li><li>Song et al. (2024). Self-Consistent Nested Diffusion Bridge for Accelerated {MRI} Reconstruction. <i>arXiv:2412.09998</i>.</li><li>Oliveras et al. (2026). MUMINS}: Metadata-Conditioned Uncertainty-Aware Medical Image Next-State Synthesis. <i>arXiv:2609.17169</i>.</li><li>Jin et al. (2026). Measurement Geometry and Design for Trustworthy Generative Inverse Problems. <i>arXiv:2606.02309</i>.</li><li>Cardoso et al. (2023). RAISE} -- Radiology {AI} Safety, an End-to-End Lifecycle Approach. <i>arXiv:2311.14570</i>.</li><li>Fink et al. (2026). Artificial Intelligence Reporting and Data System ({AI-RADS}): A Structured Framework for Case-Level Assessment of {AI} Output. <i>Investigative Radiology</i>.</li><li>ixi_dataset (2008). IXI} Dataset. <i></i>.</li><li>Menze et al. (2015). The Multimodal Brain Tumor Image Segmentation Benchmark ({BRATS}). <i>IEEE Transactions on Medical Imaging</i>.</li><li>Thummerer et al. (2023). SynthRAD2023} Grand Challenge Dataset: Generating Synthetic {CT} for Radiotherapy. <i>Medical Physics</i>.</li></ol>
+<ol class="refs"><li>Ho et al. (2020). Denoising Diffusion Probabilistic Models. <i>Advances in Neural Information Processing Systems</i>.</li><li>Nichol et al. (2021). Improved Denoising Diffusion Probabilistic Models. <i>International Conference on Machine Learning</i>.</li><li>Arslan et al. (2025). Self-Consistent Recursive Diffusion Bridge for Medical Image Translation. <i>Medical Image Analysis</i>.</li><li>Tivnan et al. (2024). Hallucination Index: An Image Quality Metric for Generative Reconstruction Models. <i>Medical Image Computing and Computer Assisted Intervention (MICCAI)</i>.</li><li>Zhu et al. (2017). Unpaired Image-to-Image Translation Using Cycle-Consistent Adversarial Networks. <i>IEEE International Conference on Computer Vision</i>.</li><li>Isola et al. (2017). Image-to-Image Translation with Conditional Adversarial Networks. <i>IEEE Conference on Computer Vision and Pattern Recognition</i>.</li><li>Dar et al. (2019). Image Synthesis in Multi-Contrast {MRI} with Conditional Generative Adversarial Networks. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Dalmaz et al. (2022). ResViT}: Residual Vision Transformers for Multi-Modal Medical Image Synthesis. <i>IEEE Transactions on Medical Imaging</i>.</li><li>\"O}zbey et al. (2023). Unsupervised Medical Image Translation with Adversarial Diffusion Models. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Korkmaz et al. (2025). I2I-Galip}: Unsupervised Medical Image Translation Using Generative Adversarial {CLIP. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Song et al. (2020). Score-Based Generative Modeling through Stochastic Differential Equations. <i>arXiv:2011.13456</i>.</li><li>Song et al. (2019). Generative Modeling by Estimating Gradients of the Data Distribution. <i>Advances in Neural Information Processing Systems</i>.</li><li>Chung et al. (2023). Direct Diffusion Bridge Using Data Consistency for Inverse Problems. <i>arXiv:2305.19809</i>.</li><li>Su et al. (2023). Dual Diffusion Implicit Bridges for Image-to-Image Translation. <i>arXiv:2203.08382</i>.</li><li>Kim et al. (2024). Unpaired Image-to-Image Translation via Neural {S}chr{\"o}dinger Bridge. <i>International Conference on Learning Representations</i>.</li><li>Delbracio et al. (2023). Inversion by Direct Iteration: An Alternative to Denoising Diffusion for Image Restoration. <i>Transactions on Machine Learning Research</i>.</li><li>Gal et al. (2016). Dropout as a {B}ayesian Approximation: Representing Model Uncertainty in Deep Learning. <i>International Conference on Machine Learning</i>.</li><li>Lakshminarayanan et al. (2017). Simple and Scalable Predictive Uncertainty Estimation Using Deep Ensembles. <i>Advances in Neural Information Processing Systems</i>.</li><li>Ayhan et al. (2018). Test-Time Data Augmentation for Estimation of Heteroscedastic Aleatoric Uncertainty in Deep Neural Networks. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Kendall et al. (2017). What Uncertainties Do We Need in {B}ayesian Deep Learning for Computer Vision?. <i>Advances in Neural Information Processing Systems</i>.</li><li>Wolleb et al. (2022). Diffusion Models for Implicit Image Segmentation Ensembles. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Osuna-Vargas et al. (2024). Denoising Diffusion Models for High-Resolution Microscopy Image Restoration. <i>arXiv:2409.12078</i>.</li><li>Song et al. (2024). Self-Consistent Nested Diffusion Bridge for Accelerated {MRI} Reconstruction. <i>arXiv:2412.09998</i>.</li><li>Oliveras et al. (2026). MUMINS}: Metadata-Conditioned Uncertainty-Aware Medical Image Next-State Synthesis. <i>arXiv:2609.17169</i>.</li><li>Jin et al. (2026). Measurement Geometry and Design for Trustworthy Generative Inverse Problems. <i>arXiv:2606.02309</i>.</li><li>Cardoso et al. (2023). RAISE} -- Radiology {AI} Safety, an End-to-End Lifecycle Approach. <i>arXiv:2311.14570</i>.</li><li>Fink et al. (2026). Artificial Intelligence Reporting and Data System ({AI-RADS}): A Structured Framework for Case-Level Assessment of {AI} Output. <i>Investigative Radiology</i>.</li><li>Chung et al. (2026). CRAFT: Clinical Reward-Aligned Finetuning for Medical Image Synthesis. <i>arXiv preprint arXiv:2605.12650</i>.</li><li>Susladkar et al. (2025). ViCTr: Vital Consistency Transfer for Pathology-Aware Image Synthesis. <i>Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)</i>.</li><li>Li et al. (2025). Denoising Diffusion Wavelet Models for Zero-shot Medical Image Translation. <i>Knowledge-Based Systems</i>.</li><li>ixi_dataset (2008). IXI} Dataset. <i></i>.</li><li>Menze et al. (2015). The Multimodal Brain Tumor Image Segmentation Benchmark ({BRATS}). <i>IEEE Transactions on Medical Imaging</i>.</li><li>Thummerer et al. (2023). SynthRAD2023} Grand Challenge Dataset: Generating Synthetic {CT} for Radiotherapy. <i>Medical Physics</i>.</li></ol>
 </body></html>

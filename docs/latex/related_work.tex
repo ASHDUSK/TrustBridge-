@@ -61,3 +61,17 @@ supports rule-based gating: our framework is complementary to output-guardrail
 lifecycles such as RAISE~\cite{cardoso2023raise} and provides the objective,
 pixel-level evidence that reporting frameworks like
 AI-RADS~\cite{fink2026airads} call for, while remaining fully automatic.
+
+\paragraph{Beyond sampling dispersion: semantic and pathology-aware signals.}
+Dispersion-style evidence is blind to errors the sampler makes
+\emph{consistently}---a limitation we quantify in \S\ref{sec:exp}. Three
+concurrent research lines attack this from the evaluation side and mark the
+natural next step for trust layers like ours. CRAFT~\cite{chung2026craft}
+scores generated images against clinical criteria with a foundation-model
+Clinical Alignment Score, reducing hallucination-like content; ViCTr~\cite{susladkar2025victr}
+makes synthesis pathology-aware with graded severity control via EWC-regularized
+LoRA adaptation; and DDWM~\cite{li2025ddwm} achieves zero-shot translation by
+learning only the target-domain distribution and fusing domain-invariant
+anatomy through wavelet decomposition. All three require either foundation
+models, retraining, or architectural change; they are complementary to
+sampler-native evidence and are discussed as future work in \S\ref{sec:discussion}.
