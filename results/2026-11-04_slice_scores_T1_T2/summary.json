@@ -1,0 +1,8 @@
+{
+  "n": 60,
+  "score_mean": 82.9,
+  "score_std": 1.8,
+  "psnr_mean": 18.28,
+  "corr_pearson": 0.4698,
+  "corr_spearman_src": null
+}

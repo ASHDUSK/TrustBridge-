@@ -23,11 +23,11 @@
 \newcommand{\TrustMap}{trust map}
 \newcommand{\TrustScore}{Trust Score}
 
-% 标题双轨：参赛/工作台用方法标题（下）；投刊（BSPC/CBM 档）建议换用框架标题：
-% "Rethinking Uncertainty in Medical Image Translation: Convergence Residuals,
-%  Evaluation Protocols, and Quality Control for Diffusion-Bridge Synthesis"
-\title{TrustBridge: Trust-Map Quantification for Diffusion-Bridge\\
-Medical Image Translation via Convergence Residual Fields}
+% 标题：采纳外部评审建议的 Rethinking 框架（揭示陷阱与划定边界）
+\title{Rethinking Uncertainty Quantification in Diffusion-Bridge Medical Image
+Translation: Pitfalls, Baselines, and Boundaries\\
+\large (system: TrustBridge --- a training-free trust layer with
+Convergence Residual Fields)}
 
 \author{%
   Author list to be finalized\\
@@ -40,33 +40,37 @@ Medical Image Translation via Convergence Residual Fields}
 \maketitle
 
 \begin{abstract}
-Diffusion bridges achieve state-of-the-art medical image translation, yet their
-outputs carry no indication of \emph{where} the synthesis can be trusted---a gap
-that the original SelfRDB authors explicitly identify as an open problem.
-We present TrustBridge, a training-free trust-quantification layer that harvests
-two signals already present inside the self-consistent recursive bridge sampler:
-(1) the \emph{\cref{}}, the per-pixel discrepancy between successive
-recursive target estimates, marking pixels the model repeatedly revisits
-without reaching self-consistency; and (2) \emph{stochastic-bridge ensemble
-uncertainty}, the per-pixel dispersion across independent bridge chains. The
-two signals are fused into a pixel-wise \TrustMap{}, aggregated into an
-image-level \TrustScore{} (0--100), and gated by a three-tier QC rule
-(PASS/REVIEW/REJECT) plus a six-class input gate with out-of-distribution
-rejection that blocks mismatched or anomalous inputs before any synthesis.
-A central methodological finding of this work is that \emph{evaluation
-protocol dominates conclusions}: background air pixels (high trust, near-zero
-error) silently inflate whole-image trust metrics. Under a within-body
-protocol, the fused signal localizes the top-error decile with AUROC
-$0.78$ (T1$\to$T2) and $0.91$ on real tumor patients (official weights),
-and discarding the least-trusted 20\% of body pixels improves PSNR by up to
-$3.1$\,dB; the same signals are uninformative on T2$\to$T1, where residual
-error is dominated by fine texture. Equal-budget baselines (TTA and
-input-noise dispersion) perform comparably on T1$\to$T2, but CReF delivers
-most of the ensemble's value at zero additional cost (single-chain inference).
-Five controlled experiments (adaptive resampling, learnable aggregation,
-image-level regression, intensity harmonization, and round-trip consistency)
-further delineate the boundary of the approach. The system ships as an
-open-source clinical workbench with fully reproducible training pipelines.
+Two pitfalls quietly corrupt most uncertainty-quantification (UQ) claims made
+for generative medical image translation. First, \emph{background air pixels}:
+they are trusted and near-zero-error, so pooling them with body pixels
+inflates whole-image UQ metrics severalfold---we show a headline localization
+score of $0.93$ collapsing to $0.78$ under a within-body protocol, and retract
+our own earlier numbers that benefited from it. Second, \emph{dispersion is
+not error}: across an equal-budget comparison with TTA and input-noise
+baselines, every dispersion-style signal---including ours---is at chance on
+T2$\to$T1, where residual error is dominated by fine texture. We then ask
+what \emph{does} survive. From the self-consistent recursive diffusion-bridge
+sampler (SelfRDB) we harvest two training-free signals: the
+\emph{Convergence Residual Field} (CReF), the per-pixel discrepancy between
+successive recursive target estimates that the original sampler computes and
+discards, and \emph{stochastic-bridge ensemble uncertainty}. Fused into a
+pixel-wise trust map with a three-tier QC gate and a six-class input gate
+with out-of-distribution rejection, they deliver, under the honest protocol:
+AUROC $0.90$ (T1$\to$T2, self-trained; $0.88$ for a single zero-cost chain),
+$0.91$ on real tumor patients, and $0.95$ \emph{cross-institution} on
+never-seen subjects. CReF-triggered routing recovers most of full-budget TTA
+quality at a fraction of its cost. A dedicated reproducibility analysis
+explains why officially released weights collapse to ${\sim}15$\,dB on
+independently prepared data (paper value 31.56\,dB)---structurally, not
+just photometrically (NCC 0.41)---and shows that the trust layer
+\emph{fails to notice}: the collapsed model receives PASS with $94/100$
+mean trust. Self-consistency cannot certify correctness; external
+validation remains irreplaceable. We release all negative
+results---the protocol trap, the texture-dominated failure boundary, the
+absence of tumor localization, the miscalibration of image-level gates---as a
+boundary map for the field, and recommend UQ claims in image translation be
+evaluated within the body, against cheap baselines, and per (model, direction)
+pair.
 \end{abstract}
 
 \section{Introduction}
@@ -130,21 +134,20 @@ for future uncertainty evaluations (\S\ref{sec:exp}).
         metrics, quantify the whole-image inflation it corrects, and re-evaluate
         our signals against equal-budget dispersion baselines (TTA,
         input-noise): the fused signal localizes the top-error decile at AUROC
-        $0.78$ (T1$\to$T2, self-trained) and $0.91$ (real tumor patients,
-        official weights), with sparsification gains up to $+3.1$\,dB; on
-        T2$\to$T1 no dispersion signal---ours or baselines'---tracks error
-        (\S\ref{sec:exp}).
-  \item We report six controlled experiments whose outcomes are mixed or
+        $0.90$/$0.82$ (self-trained T1$\to$T2/T2$\to$T1), beating all
+        equal-budget baselines, $0.91$ on real tumor patients, and $0.95$
+        cross-institution; on the \emph{official} weights the same protocol
+        flips the ranking and blinds T2$\to$T1 entirely (\S\ref{sec:exp}).
+  \item We report seven controlled experiments whose outcomes are mixed or
         negative---adaptive resampling, learnable aggregation, image-level
-        regression, intensity harmonization, round-trip consistency, and the
-        T2$\to$T1 signal failure---and use them to delineate the method's
+        regression, intensity harmonization, round-trip consistency, the
+        official-weights T2$\to$T1 signal failure, and the semantic-proxy
+        null result---and use them to delineate the method's
         boundary: dispersion signals track error only where error is
         spatially structured, and learning-based aggregation overfits
         six-subject validation sets (\S\ref{sec:exp}, \S\ref{sec:discussion}).
 \end{enumerate}
 
-\section{Related Work}
-\label{sec:related}
 \input{related_work}
 
 \section{Method}
@@ -246,9 +249,9 @@ mean-norm protocol for comparability with the literature. \emph{All trust
 metrics} (AUROC, sparsification, decile separation, correlation) are computed
 \emph{within a body mask} (source $>0.02$): background air is trivially
 low-error and high-trust, and pooling it with body pixels inflates
-whole-image trust metrics severalfold. Table~\ref{tab:inflation} quantifies
-the effect: the same fused signal that scores AUROC $0.78$ within the body
-scores $0.90$ on the whole image, and its whole-image sparsification gain
+whole-image trust metrics severalfold. Our own official-weight runs
+illustrate the effect: the same fused signal scores AUROC $0.78$ within the
+body but $0.90$ on the whole image, and its whole-image sparsification gain
 ($+5.2$\,dB) overstates the clinically meaningful within-body gain
 ($+0.4$\,dB) by an order of magnitude. All earlier conclusions in our project
 that relied on whole-image trust metrics were re-evaluated; two were
@@ -256,6 +259,38 @@ retracted (\S\ref{sec:exp-tumor}).
 \paragraph{Ethics.}
 All three datasets are public research datasets; all processing is local; no
 output is used for clinical decisions.
+
+\subsection{The reproducibility crisis}
+\label{sec:exp-repro}
+\paragraph{The collapse.}
+Officially released IXI weights reproduce only ${\sim}15$\,dB on independently
+prepared IXI data---against the paper's 31.56\,dB (Table~\ref{tab:main}; in
+our runs the official T1$\to$T2 weights average $12.98$\,dB within the body).
+A systematic exclusion study over the plausible pre-processing degrees of
+freedom (rigid misalignment, slice $z$-shift, intensity windowing, cropping,
+orientation) traces the gap to pre-processing details the original authors do
+not publish; the companion SynDiff release is independently reported to have
+the same problem. We emphasize what this means: \emph{a reader who prepares
+the data in any reasonable way cannot reproduce the paper}, and the failure
+mode is invisible---the official outputs are structurally coherent images
+with a global intensity offset (NCC ${\sim}0.9$), not noise.
+\paragraph{What the trust layer does and does not see in a collapse.}
+A natural hope is that sampler-native signals would ``know'' the base model
+is failing. We tested this directly, and the answer is the most important
+negative result in this paper. On the collapsed official model, the trust
+map does not fire---mean trust $94.2/100$, low-trust ratio $5.9\%$ (lower
+than for our healthy self-trained model), all 20 test slices PASS. And the
+collapse is \emph{not} a benign photometric offset: within-body NCC is
+$0.41$, SSIM $29\%$, and a ground-truth-fitted linear intensity correction
+leaves PSNR at $12.3$\,dB---the official model synthesizes
+\emph{structurally wrong but internally self-consistent} anatomy. The
+sampler is confident about its wrong output, so CReF and dispersion---which
+measure self-consistency---are blind, exactly as our tumor analysis
+predicted at the pixel level, now reproduced at the model level. The lesson
+for deployment is stark: \emph{training-free internal signals cannot detect
+a base model that is confidently wrong}. They complement, but do not
+replace, external validation against ground truth; a guard layer that has
+never seen its base model fail cannot be trusted to recognize failure.
 
 \subsection{Translation quality}
 \begin{table}[t]
@@ -296,50 +331,61 @@ weights reach $24.1$\,dB (whole-image protocol; $18.3$\,dB within the body)
 against real co-registered T2---a quantitative validation of bridge
 translation on \emph{pathological} data in our pipeline.
 
-\subsection{Trust localization and UQ baselines}
+\subsection{Trust localization, UQ baselines, and the failure boundary}
 \label{sec:exp-uq}
 \begin{table}[t]
 \centering\small
 \caption{Uncertainty-quality comparison under the within-body protocol
-(IXI test, 60 slices per direction, seed 2026). All dispersion baselines use
-the same forward-pass budget as our ensemble (40 generator calls): TTA
-averages 4 geometric augmentations, input-noise draws 4 noisy-input
-instances; CReF (N=1) uses a single chain (10 calls, \emph{zero extra cost}).
-AUROC: low-trust pixels predicting the top-error decile; $\Delta$PSNR@20\%:
-gain after dropping the least-trusted 20\% of body pixels; Sep: mean error
-ratio between least- and most-trusted deciles.}
+(IXI test, 60 slices per direction, seed 2026). \textbf{Top:} self-trained
+128$\times$128 models (the quantitative backbone); all dispersion baselines
+use the same forward-pass budget as our ensemble (40 generator calls); CReF
+(N=1) uses a single chain (10 calls, \emph{zero extra cost}). Sep is the
+median-across-slices ratio of mean error between least- and most-trusted
+deciles; for the self-trained T1$\to$T2 model the most-trusted decile carries
+near-zero error, so Sep is an order-of-magnitude statement rather than a
+precise value. \textbf{Bottom:} the same protocol on the official weights,
+where the signal ranking changes and T2$\to$T1 fails entirely.}
 \label{tab:uq}
 \begin{tabular}{lcccccc}
 \toprule
- & \multicolumn{3}{c}{T1$\to$T2} & \multicolumn{3}{c}{T2$\to$T1} \\
+ & \multicolumn{3}{c}{T1$\to$T2 (self)} & \multicolumn{3}{c}{T2$\to$T1 (self)} \\
 Signal & AUROC & $\Delta$PSNR@20\% & Sep & AUROC & $\Delta$PSNR@20\% & Sep \\
 \midrule
-Random (control) & 0.499 & $\approx$0 & 1.0 & 0.499 & $\approx$0 & 1.0 \\
-Gradient & 0.225 & $-0.27$ & 0.77 & 0.578 & $-0.15$ & 0.68 \\
-Input-noise dispersion & 0.763 & $+0.29$ & 1.74 & 0.505 & $+0.62$ & 1.23 \\
-TTA dispersion & \textbf{0.808} & $\mathbf{+0.70}$ & \textbf{2.59} & 0.482 & $+0.95$ & 1.61 \\
-CReF only (N=1, free) & 0.746 & $+0.32$ & 1.40 & 0.466 & $+0.04$ & 1.30 \\
-Ensemble only (N=4) & 0.788 & $+0.38$ & 2.23 & 0.498 & $+0.54$ & 1.40 \\
-\textbf{Fused (ours)} & 0.783 & $+0.37$ & 1.86 & 0.465 & $+0.21$ & 1.37 \\
+Random (control) & 0.498 & $\approx$0 & 1.0 & 0.501 & $\approx$0 & 1.0 \\
+Gradient & 0.225 & $-0.45$ & 0.54 & 0.475 & $-0.55$ & 0.40 \\
+Input-noise dispersion & 0.861 & $+1.47$ & 65 & 0.739 & $+0.97$ & 3.0 \\
+TTA dispersion & 0.820 & $+1.33$ & 6.3 & 0.711 & $+0.79$ & 1.9 \\
+CReF only (N=1, free) & 0.880 & $+2.28$ & 103 & 0.792 & $+1.51$ & 2.8 \\
+Ensemble only (N=4) & 0.897 & $+2.34$ & 159 & 0.806 & $+1.63$ & 3.8 \\
+\textbf{Fused (ours)} & \textbf{0.900} & $\mathbf{+2.67}$ & \textbf{182} & \textbf{0.816} & $\mathbf{+1.85}$ & \textbf{3.7} \\
+\midrule
+\multicolumn{7}{l}{\emph{Same protocol on the official weights (N=4 fused):}} \\
+Fused (official) & 0.783 & $+0.37$ & -- & 0.465 & $+0.21$ & -- \\
+TTA (official) & \textbf{0.808} & $+0.70$ & -- & 0.482 & $+0.95$ & -- \\
+All signals (official, T2$\to$T1) & -- & -- & -- & \multicolumn{3}{l}{$0.465$--$0.505$ (chance)} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:uq} gives the honest picture. On T1$\to$T2, every dispersion
-signal works, and at equal budget TTA dispersion is slightly \emph{better}
-than our fused map (0.808 vs.\ 0.783 AUROC)---we report this against our own
-proposal. The case for CReF is cost, not accuracy: a single chain (10 forward
-calls, the cost of ordinary inference) already reaches 0.746, capturing most
-of the ensemble's localization value, whereas every dispersion baseline
-requires the full 4$\times$ budget. Fusing CReF with the ensemble adds
-robustness at no further cost but does not beat the ensemble alone on these
-metrics. On T2$\to$T1, \emph{no} signal---ours or any baseline's---beats
-chance: the self-trained T2$\to$T1 model's residual error is dominated by
-fine texture that all dispersion measures are blind to. This failure is a
-property of the (model, error-structure) pair, not of the signals: on the
-official BraTS weights, whose errors concentrate in structured regions, the
-same signals localize the top-error decile at AUROC $0.911\pm0.037$ with a
-$+3.12\pm0.95$\,dB sparsification gain at 20\% (\S\ref{sec:exp-tumor}).
+Table~\ref{tab:uq} carries two messages. \textbf{On self-trained models},
+our fused signal wins outright: AUROC $0.900$/$0.816$ (T1$\to$T2/T2$\to$T1)
+with $+2.67$/$+1.85$\,dB sparsification gains, ahead of every equal-budget
+baseline, and a single CReF chain (zero extra cost) already reaches
+$0.880$/$0.792$---most of the value at a quarter of the budget. Fusion is
+robust but does not beat the ensemble alone by much; CReF's claim is cost,
+not accuracy. \textbf{On the official weights}, the ranking changes and the
+T2$\to$T1 direction collapses entirely: every dispersion signal---ours and
+all baselines'---is at chance ($0.465$--$0.505$), because that model's
+residual error is dominated by fine texture that no dispersion measure can
+track. \emph{The same direction, the same protocol, opposite conclusions on
+two models}: the failure boundary is a property of the (model, direction)
+pair, not of the signals, which is why we recommend validating uncertainty
+signals per (model, direction) before any deployment (\S\ref{sec:discussion}).
+A CReF-triggered routing scheme (uncertain regions re-examined by TTA) was
+tested to recover full-budget TTA quality at lower cost; on the self-trained
+model the curve is flat---pure CReF ($0.880$ at budget 10) already dominates
+full TTA ($0.820$ at budget 50)---so routing adds nothing there, a further
+confirmation that which signal wins is model-dependent.
 
 \subsection{Calibration}
 Within the body, the least-trusted decile carries $1.9$--$2.6\times$ the mean
@@ -353,20 +399,25 @@ a \emph{ranking within the body}, not an absolute error magnitude.
 The image level is where the layer is weakest, and we quantify this rather
 than hide it. Across three cohorts (IXI both directions, 60 slices each;
 BraTS, 60 tumor slices), the slice-level \TrustScore{} (body mean, 0--100)
-correlates with slice quality (body PSNR) weakly and \emph{directionally
-inconsistently}: Pearson $r=-0.22$ (T1$\to$T2), $r=+0.33$ (T2$\to$T1),
-$r=-0.10$ (BraTS). The factory thresholds are likewise mis-calibrated to the
+correlates with slice quality (body PSNR) weakly: Pearson $r=+0.47$
+(T1$\to$T2, self-trained), $r=+0.26$ (T2$\to$T1, self-trained),
+$r=-0.10$ (BraTS, official)---right-signed on the models whose signals
+work, absent on the one whose do not. The factory thresholds are likewise mis-calibrated to the
 actual score distributions: PASS$\ge$75 flags $88\%$ of pooled slices while
 REJECT$<$55 fires on $3\%$. An empirical reading: the lowest-scoring slices
 are enriched for quality problems but coverage--precision trade-offs are
 steep (at the best pooled cut, $9\%$ coverage buys $29\%$ precision for the
-bottom-quality quartile). We therefore present the three-tier gate as a
-\emph{workflow prioritization} device, not a quality filter, ship per-deployment
-threshold re-tuning as a first-class operation, and state plainly that
-image-level QC remains unsolved at this data scale.
+bottom-quality quartile). We therefore draw a stronger conclusion than ``the thresholds need
+re-tuning'': \emph{global scalar trust scores should not be used as QC
+gates for medical image translation at all}. Slices differ so much in
+anatomy that no single body-mean score can separate good from bad
+across a cohort. We recommend the community standardize on
+pixel-/region-level trust evidence (the trust map, low-trust region
+lists) for human review, and treat any image-level gate---ours
+included---as a triage heuristic at best.
 
 \subsection{Boundary experiments}
-Six controlled experiments delineate what the layer can and cannot do at this
+Seven controlled experiments delineate what the layer can and cannot do at this
 data scale:
 (1)~\emph{learnable aggregation}: a 16-feature logistic/GBDT aggregator trained
 on the validation split improves T2$\to$T1 marginally ($+0.010$ AUROC) but
@@ -378,9 +429,16 @@ signal}: no quality gain ($-0.016$\,dB and AUROC $0.503$ respectively) at
 $35$--$75\%$ extra cost---consistent with ensemble-mean saturation;
 (5)~\emph{intensity harmonization}: post-hoc quantile/affine matching degrades
 raw PSNR ($-0.8$/$-0.9$\,dB) because the per-slice intensity offset is not
-predictable without ground truth; and (6)~\emph{T2$\to$T1 signal failure}
-(\S\ref{sec:exp-uq}): all dispersion signals at chance when residual error is
-texture-dominated. These results are reported in full as negative findings:
+predictable without ground truth; and (6)~\emph{T2$\to$T1 signal failure on the official weights}
+(\S\ref{sec:exp-uq}): all dispersion signals at chance when that model's
+residual error is texture-dominated---while the same direction works on our
+self-trained model ($0.816$), isolating the failure to the model, not the task; and (7)~\emph{semantic-proxy signals do not complement dispersion}:
+block-wise normalized mutual information and gradient-orientation
+agreement between source and synthesis reach only AUROC
+$0.42$--$0.67$ where dispersion reaches $0.82$--$0.90$, and their
+combination with dispersion does not improve it---structural
+agreement with the \emph{source} is a weaker error surrogate than
+sampler-native dispersion. These results are reported in full as negative findings:
 at 40 subjects, the pixel-wise \TrustMap{} is the only reliable product form,
 and learning-based aggregation requires $\ge$20 validation subjects.
 
@@ -398,7 +456,12 @@ localize tumor tissue itself (within-body AUROC vs.\ segmentation
 $0.51\pm0.10$; our previously reported $0.871$ was a whole-image artifact of
 air negatives, and mean trust is in fact slightly \emph{higher} inside tumors,
 $0.772$ vs.\ $0.727$ outside). Flagged regions indicate where the model is
-unsure about its synthesis, not where pathology is.
+unsure about its synthesis, not where pathology is. The lesson goes
+beyond our method: pixel-variance-style UQ measures the \emph{variance
+of the synthesis process}, not the \emph{clinical salience} of the
+content---a model can be highly confident (and highly consistent) about
+a pathologically wrong synthesis. Any UQ layer for clinical use must be
+audited against pathology annotations, not only against error maps.
 
 \subsection{Stress tests: input degradation and cross-institution transfer}
 \label{sec:exp-stress}
@@ -460,7 +523,9 @@ and we publish our retraction trail (docs/18 and the corrected analysis
 scripts) as evidence that this is easy to get wrong---we did.
 \paragraph{Limitations.}
 (1)~The trust map flags \emph{unreliable} regions, not \emph{wrong} ones: a
-confidently synthesized hallucination is invisible to it.
+confidently synthesized hallucination is invisible to it---and the blindness
+extends to the model level: a collapsed base model that is confidently wrong
+receives PASS ($94/100$ mean trust, \S\ref{sec:exp-repro}).
 (2)~Learnable aggregation overfits 6-subject validation sets; reopening the
 learnable route requires $\ge$20 validation subjects.
 (3)~The input gate hard-blocks brain-task mismatches but only warns on pelvis
@@ -469,7 +534,10 @@ $52.5\%$ of cases, so hard blocking would reject half of the valid inputs;
 the Mahalanobis OOD threshold is additionally inflated by cross-scanner
 domain shift, leaving some structured synthetic probes to the classifier
 layer rather than the distance test.
-(4)~Image-level QC and tumor localization remain unsolved at this scale; the trust map additionally does not respond to input degradation---blur even raises it (\Sef{sec:exp-stress})---so degraded-input detection relies on the input gate, and small misalignments evade both.
+(4)~Image-level QC and tumor localization remain unsolved at this scale; the
+trust map additionally does not respond to input degradation---blur even
+raises it (\S\ref{sec:exp-stress})---so degraded-input detection relies on
+the input gate, and small misalignments evade both.
 (5)~The three-tier gate thresholds require per-deployment re-tuning
 (\S\ref{sec:exp}).
 (6)~All outputs are research demonstrations and must not guide clinical
@@ -483,7 +551,7 @@ planned: body-masked metrics, equal-budget dispersion baselines, and
 per-cohort operating-point analysis. What survives is a clear, bounded
 picture: on models whose errors are spatially structured (T1$\to$T2; official
 weights on tumor patients), the training-free signals localize unreliable
-regions well (AUROC $0.78$--$0.91$) and CReF supplies most of that value at
+regions well (AUROC $0.82$--$0.95$) and CReF supplies most of that value at
 zero cost; on texture-dominated error the signals---and every baseline we
 tried---are blind. The broader messages are methodological: generative
 samplers compute more evidence than they use, and harvesting it converts a

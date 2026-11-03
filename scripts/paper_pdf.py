@@ -19,17 +19,9 @@ OUT = os.path.join(LATEX, "TrustBridge_paper_draft.pdf")
 title, author, date, html, refs = tex_to_html(LATEX)
 
 
-def blk(m):
-    if not m:
-        return ""
-    inner = m.group(1)
-    inner = inner.replace("\\\\", "<br>").replace("\\", "")
-    return inner
-
-
-title_h = "<h1>" + blk(title) + "</h1>" if title else "<h1>TrustBridge</h1>"
-author_h = "<div class='authors'>" + blk(author).replace("  \n", "<br>") + "</div>" if author else ""
-date_h = f"<div class='affil'>{blk(date)}</div>" if date else ""
+title_h = "<h1>" + title + "</h1>" if title else "<h1>TrustBridge</h1>"
+author_h = "<div class='authors'>" + author + "</div>" if author else ""
+date_h = f"<div class='affil'>{date}</div>" if date else ""
 
 HTML = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -45,6 +37,7 @@ HTML = f"""<!DOCTYPE html>
  h2{{font-size:17px;margin:26px 0 8px;border-bottom:1.5px solid #2563eb;padding-bottom:3px;color:#1e3a8a;}}
  h3{{font-size:15px;margin:16px 0 6px;color:#1e3a8a;}}
  h4{{font-size:14px;margin:14px 0 4px;color:#334155;}}
+ .subtitle{{font-size:14px;font-weight:400;color:#475569;margin-top:6px;}}
  .authors{{text-align:center;font-size:14px;color:#444;margin-bottom:6px;}}
  .affil{{text-align:center;font-size:12px;color:#666;margin-bottom:4px;}}
  .abstract{{margin:20px 40px;font-size:13.5px;background:#f8fafc;padding:14px 18px;border-radius:6px;}}

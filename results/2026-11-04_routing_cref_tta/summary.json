@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-04 00:43:15",
+  "task": "T1->T2*",
+  "note": "混合不确定性：CReF>=t 区域用 TTA 分歧，其余用 CReF；t=-1 纯CReF，t=0 纯TTA",
+  "cost_auroc_curve": {
+    "-1": {
+      "budget": 10.0,
+      "auroc": 0.8805,
+      "routed_frac": 0.0
+    },
+    "0": {
+      "budget": 50.0,
+      "auroc": 0.8204,
+      "routed_frac": 1.0
+    },
+    "0.5": {
+      "budget": 13.9,
+      "auroc": 0.8786,
+      "routed_frac": 0.098
+    },
+    "0.6": {
+      "budget": 12.7,
+      "auroc": 0.8788,
+      "routed_frac": 0.068
+    },
+    "0.7": {
+      "budget": 11.9,
+      "auroc": 0.879,
+      "routed_frac": 0.048
+    },
+    "0.8": {
+      "budget": 11.4,
+      "auroc": 0.8792,
+      "routed_frac": 0.034
+    },
+    "0.9": {
+      "budget": 10.9,
+      "auroc": 0.8793,
+      "routed_frac": 0.024
+    },
+    "0.95": {
+      "budget": 10.8,
+      "auroc": 0.8794,
+      "routed_frac": 0.02
+    },
+    "1.01": {
+      "budget": 10.0,
+      "auroc": 0.8805,
+      "routed_frac": 0.0
+    }
+  }
+}

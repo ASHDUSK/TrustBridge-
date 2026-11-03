@@ -100,6 +100,9 @@ def _session_dir() -> str:
     return d
 
 
+_calib_note_cache = {}
+
+
 def _score_html(res, low_thresh: float = 0.6) -> str:
     """主视觉 = 低信任区域占比（稳健量）；总分降为参考值并注明限制（limitation ②）。"""
     flag = res.qc_flag
@@ -117,7 +120,7 @@ def _score_html(res, low_thresh: float = 0.6) -> str:
         f"<div style='font-size:11.5px;color:#888;margin-top:4px;line-height:1.45;'>"
         f"图像级简单聚合与切片质量的相关性弱且方向不一致（r = −0.22 / +0.33 / −0.10，"
         f"见论文「图像级 QC 操作点分析」），请以像素级信任图与低信任区域占比为准；"
-        f"阈值 PASS≥75 / REVIEW≥55 为演示默认值，未经临床标定，需按部署重新整定。</div>"
+        f"{_calib_note_cache.get('note', '阈值 PASS≥75 / REVIEW≥55 为演示默认值，未经临床标定（可在「部署校准」页整定）')}</div>"
         f"</div></div>"
     )
 
@@ -237,6 +240,7 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
         (rpt.make_overlay(pred, res.trust_map, float(low_thresh)), "低信任叠加（红色 = 需复核）"),
         (hist_path, f"信任度分布 · 低信任区域 {res.lowtrust_ratio:.1f}%"),
     ]
+    _calib_note_cache["note"] = load_calibration_note(task_id)
     dev = getattr(eng, "device", "?")
     metric_txt = (f"**设备** {dev}  ·  **耗时** {res.elapsed_s:.1f}s  ·  "
                   f"**融合权重** w_rcrf={res.w_used[0]} / w_unc={res.w_used[1]}\n\n")
@@ -408,6 +412,112 @@ def _batch_figure(rows, path, low_thresh):
     fig.savefig(path, dpi=130)
     plt.close(fig)
     return path
+
+
+def _calib_path(task_id: str) -> str:
+    safe = task_id.replace("->", "_").replace("*", "x")
+    return os.path.join(ROOT, "calibrations", f"calibration_{safe}.json")
+
+
+def run_calibration(dir_src, dir_gt, task_id, preset, reject_coverage, max_n,
+                    progress=gr.Progress()):
+    """部署校准向导：用本机构的一批已知真值切片，拟合三级门控阈值。
+
+    方法：逐片推理（N=4）记录体区 Trust Score 与体区 PSNR；
+    以"体区 PSNR 下四分位 = 问题切片"为参照，
+    REJECT 阈值取分数分布的 reject_coverage 分位（默认 10%），
+    REVIEW 阈值取 30% 分位；输出阈值、问题切片检出精确率，并持久化 JSON。
+    校准后的阈值在单图结果页显示为"本机构校准"，替代演示默认值。
+    """
+    import numpy as np
+    from trustbridge.metrics import mean_norm
+    from skimage.metrics import peak_signal_noise_ratio
+
+    if not dir_src or not dir_gt:
+        raise gr.Error("请同时填写输入切片目录与参考真值目录")
+    if not os.path.isdir(dir_src) or not os.path.isdir(dir_gt):
+        raise gr.Error("目录不存在，请检查路径")
+    srcs = sorted(p for p in os.listdir(dir_src)
+                  if os.path.splitext(p)[1].lower() in {".png", ".jpg", ".npy", ".dcm"})
+    gts = sorted(p for p in os.listdir(dir_gt)
+                 if os.path.splitext(p)[1].lower() in {".png", ".jpg", ".npy", ".dcm"})
+    if not srcs:
+        raise gr.Error("输入目录中没有可识别的切片")
+    if len(gts) < len(srcs):
+        raise gr.Error(f"真值数量不足：输入 {len(srcs)} 片，真值 {len(gts)} 片")
+    n = min(len(srcs), int(max_n))
+    eng = get_engine(task_id)
+    _, src_mod, tgt_mod, _ = TASKS[task_id]
+    n_ens, skip, _ = PRESETS[preset]
+
+    rows = []
+    for i in range(n):
+        progress(float(i) / n, desc=f"校准推理 ({i+1}/{n}) {srcs[i]}")
+        img, _ = load_image(os.path.join(dir_src, srcs[i]))
+        gt01, _ = load_image(os.path.join(dir_gt, gts[i]))
+        if img.shape != gt01.shape:
+            continue
+        mask = img > 0.02
+        if mask.sum() < 200:
+            continue
+        out = translate_single(eng, img, n_ensemble=n_ens, step_skip=skip, seed=0)
+        res, pred = out["result"], out["pred01"]
+        tr = res.trust_map
+        if tr.shape != img.shape:
+            S = tr.shape[0]; H, W = img.shape
+            pt, pl = (S - H) // 2, (S - W) // 2
+            tr = np.ascontiguousarray(tr[pt:pt + H, pl:pl + W])
+            pred = np.ascontiguousarray(pred[pt:pt + H, pl:pl + W])
+        g, p = mean_norm(gt01), mean_norm(pred)
+        psnr = float(peak_signal_noise_ratio(g[mask], p[mask], data_range=g[mask].max()))
+        rows.append({"file": srcs[i], "trust_score": round(float(tr[mask].mean() * 100), 1),
+                     "body_psnr": round(psnr, 2)})
+
+    if len(rows) < 8:
+        raise gr.Error(f"有效配对切片不足（{len(rows)} 片，至少 8 片）。"
+                       f"请检查两个目录的文件是否一一对应、尺寸是否一致。")
+    scores = np.array([r["trust_score"] for r in rows])
+    psnrs = np.array([r["body_psnr"] for r in rows])
+    q25 = float(np.percentile(psnrs, 25))
+    problems = psnrs < q25
+    cov = float(np.clip(reject_coverage, 0.02, 0.4))
+    t_reject = float(np.percentile(scores, cov * 100))
+    t_review = float(np.percentile(scores, 30))
+    flagged = scores < t_reject
+    precision = float(problems[flagged].mean()) if flagged.any() else 0.0
+    recall = float(flagged[problems].mean()) if problems.any() else 0.0
+
+    calib = {"date": time.strftime("%Y-%m-%d %H:%M:%S"), "task": task_id,
+             "n_slices": len(rows), "preset": preset,
+             "reject_below": round(t_reject, 1), "review_below": round(t_review, 1),
+             "target_coverage": cov, "problem_def": "body_psnr < p25",
+             "precision_at_reject": round(precision, 3),
+             "recall_at_reject": round(recall, 3),
+             "score_p50": round(float(np.percentile(scores, 50)), 1),
+             "per_slice": rows}
+    os.makedirs(os.path.dirname(_calib_path(task_id)), exist_ok=True)
+    json.dump(calib, open(_calib_path(task_id), "w", encoding="utf-8"),
+              ensure_ascii=False, indent=2)
+
+    txt = (f"**校准完成（{len(rows)} 片，任务 {task_id}）**\n\n"
+           f"| 阈值 | 建议值 | 含义 |\n|---|---|---|"
+           f"| REJECT | 信任分 < **{t_reject:.1f}** | 目标覆盖 {cov:.0%} |\n"
+           f"| REVIEW | 信任分 < **{t_review:.1f}** | 分数后 30% |\n"
+           f"| PASS | ≥ {t_review:.1f} | 其余 |\n\n"
+           f"对问题切片（体区 PSNR 下四分位）的拦截：精确率 **{precision:.0%}** / "
+           f"召回 **{recall:.0%}**（分数中位 {np.percentile(scores, 50):.1f}）\n\n"
+           f"已保存到 `{_calib_path(task_id)}`——单图结果页将改用本机构校准阈值显示。")
+    return txt
+
+
+def load_calibration_note(task_id: str) -> str:
+    """结果页阈值说明：有本机构校准则引用之，否则标注演示默认。"""
+    try:
+        c = json.load(open(_calib_path(task_id), encoding="utf-8"))
+        return (f"阈值已按本机构校准（{c['date']}，{c['n_slices']} 片）："
+                f"REJECT < {c['reject_below']} / REVIEW < {c['review_below']}")
+    except Exception:
+        return "阈值 PASS≥75 / REVIEW≥55 为演示默认值，未经临床标定（可在「部署校准」页整定）"
 
 
 def run_batch(dir_path, files, task_id, preset, low_thresh, max_n,
@@ -616,11 +726,27 @@ def build_ui():
                     btn = gr.Button("🚀 开始翻译", variant="primary", size="lg")
                     ex_dir = os.path.join(ROOT, "app", "examples")
                     if os.path.isdir(ex_dir) and os.listdir(ex_dir):
+                        def _example_autotask(f):
+                            """示例-任务自动匹配：从文件名解析源模态（demo_*_T1/T2.png），
+                            自动切到对应的默认任务——防止评委点到 T1 示例而任务停在
+                            T2→T1，被门控硬拒的演示事故。"""
+                            base = os.path.basename(str(f)).upper()
+                            t = None
+                            if base.endswith("_T1.PNG"):
+                                t = "T1->T2"
+                            elif base.endswith("_T2.PNG"):
+                                t = "T2->T1"
+                            if t is not None and hasattr(task, "choices") and                                     t not in (task.choices or []):
+                                t = None
+                            return f, t
+
                         gr.Examples(
                             examples=[os.path.join(ex_dir, f) for f in
                                       sorted(os.listdir(ex_dir)) if f.endswith(".png")][:6],
                             inputs=[inp],
-                            label="示例切片（点击加载）")
+                            fn=_example_autotask,
+                            outputs=[inp, task],
+                            label="示例切片（点击加载 · 自动匹配任务）")
                 with gr.Column(scale=6):
                     score = gr.HTML()
                     metric = gr.Markdown()
@@ -688,6 +814,35 @@ def build_ui():
                     bcsv = gr.File(label="汇总 CSV 下载")
             bbtn.click(run_batch, inputs=[bdir, bfiles, btask, bpreset, blow, bmax, bsave],
                        outputs=[bsum, bcsv, bfig, bgallery])
+
+        with gr.Tab("🧰 部署校准"):
+            gr.Markdown(
+                "**为什么需要校准**：三级门控的默认阈值（PASS≥75 / REVIEW≥55）是演示默认值，\n\n"
+                "与实际分数分布错位（论文「图像级 QC 操作点分析」）。\n"
+                "部署到新机构/新设备时，用一批**已知真值**的切片重跑本向导，\n"
+                "即可得到贴合本机构分数分布的阈值——回应『无域校准机制』的评审意见。\n\n"
+                "**用法**：准备两个目录（文件名排序后一一对应）——\n"
+                "① 输入切片（PNG/JPG/npy），② 对应的参考真值；每目录 ≥ 8 片，建议 15–30 片。")
+
+            with gr.Row():
+                with gr.Column(scale=5):
+                    ctask_ok = available_tasks()
+                    _, ctask = _task_picker(ctask_ok,
+                                            "T2->T1" if "T2->T1" in ctask_ok else ctask_ok[0])
+                    with gr.Row():
+                        csrc = gr.Textbox(label="输入切片目录", placeholder=r"D:\data\src_slices")
+                        cgt = gr.Textbox(label="参考真值目录", placeholder=r"D:\data\gt_slices")
+                    with gr.Row():
+                        cpreset = gr.Radio(list(PRESETS.keys()), value="快速 ⚡", label="档位")
+                        ccov = gr.Slider(2, 40, value=10, step=1,
+                                         label="REJECT 目标覆盖率（%）：拦下多少比例的切片")
+                        cmax = gr.Number(value=24, precision=0, label="最多校准片数")
+                    cbtn = gr.Button("🧰 开始校准", variant="primary")
+                with gr.Column(scale=6):
+                    cout = gr.Markdown()
+            cbtn.click(run_calibration,
+                       inputs=[csrc, cgt, ctask, cpreset, ccov, cmax],
+                       outputs=[cout])
 
         with gr.Tab("🕓 历史记录"):
             with gr.Row():

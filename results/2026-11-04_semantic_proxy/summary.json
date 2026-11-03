@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-04 01:30:02",
+  "groups": {
+    "T1->T2*:nmi": {
+      "n": 30,
+      "auroc": 0.5813,
+      "spearman": -0.4121
+    },
+    "T1->T2*:grad_agree": {
+      "n": 30,
+      "auroc": 0.3319,
+      "spearman": 0.0266
+    },
+    "T1->T2*:struct_fused": {
+      "n": 30,
+      "auroc": 0.564,
+      "spearman": -0.3628
+    },
+    "T1->T2*:dispersion_ours": {
+      "n": 30,
+      "auroc": 0.099,
+      "spearman": 0.7358
+    },
+    "T1->T2*:struct+disp": {
+      "n": 30,
+      "auroc": 0.1576,
+      "spearman": 0.5283
+    },
+    "T2->T1*:nmi": {
+      "n": 30,
+      "auroc": 0.3948,
+      "spearman": -0.0695
+    },
+    "T2->T1*:grad_agree": {
+      "n": 30,
+      "auroc": 0.4031,
+      "spearman": -0.1108
+    },
+    "T2->T1*:struct_fused": {
+      "n": 30,
+      "auroc": 0.3956,
+      "spearman": -0.1033
+    },
+    "T2->T1*:dispersion_ours": {
+      "n": 30,
+      "auroc": 0.1781,
+      "spearman": 0.3511
+    },
+    "T2->T1*:struct+disp": {
+      "n": 30,
+      "auroc": 0.2062,
+      "spearman": 0.2635
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "official_13db": {
+    "n": 20,
+    "ncc": 0.4138,
+    "psnr_after_linearcorr": 12.34,
+    "ssim_pct": 29.42,
+    "mean_linear_gain": 1.211
+  },
+  "self_18db": {
+    "n": 20,
+    "ncc": 0.8613,
+    "psnr_after_linearcorr": 18.27,
+    "ssim_pct": 74.91,
+    "mean_linear_gain": 0.948
+  }
+}

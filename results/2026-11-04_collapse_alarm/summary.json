@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-04 00:39:25",
+  "task": "T1->T2",
+  "groups": {
+    "official_15db": {
+      "n": 20,
+      "body_psnr": 12.98,
+      "lowtrust_ratio_pct": 5.86,
+      "trust_score": 94.2,
+      "qc_flags": {
+        "PASS": 20,
+        "REVIEW": 0,
+        "REJECT": 0
+      }
+    },
+    "self_20db": {
+      "n": 20,
+      "body_psnr": 18.24,
+      "lowtrust_ratio_pct": 7.32,
+      "trust_score": 90.1,
+      "qc_flags": {
+        "PASS": 20,
+        "REVIEW": 0,
+        "REJECT": 0
+      }
+    }
+  }
+}
