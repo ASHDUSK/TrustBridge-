@@ -1,10 +1,10 @@
 # TrustBridge · Rethinking Uncertainty Quantification for Diffusion-Bridge Medical Image Translation
 
-> 基于 **SelfRDB 自洽递归扩散桥**（Arslan et al., arXiv:2405.06789, MIT License），
-> 从采样器内部收割**训练免费**的可信度证据：**收敛残差场（CReF）** + 随机桥集成分歧
-> → 逐像素信任图 / 三级质控门控 / 六类输入门控（域外拒绝）。
->
-> **核心理念：不只合成目标模态，还告诉你哪里可信——并且先测出自己什么时候不可信。**
+> **TrustBridge 是为医学图像翻译设计的临床安全分诊护栏**（基于 SelfRDB 自洽递归扩散桥，
+> Arslan et al., arXiv:2405.06789, MIT）。它在合成**之前**拦截错模态/域外/退化输入
+> （1,160 例验证矩阵：562 例非法输入 0 漏放），在合成**之后**给出逐像素信任图与分诊建议
+> （PASS→REVIEW→REJECT），并把**自己守卫的每一种失效**（自信的幻觉、基座模型结构性崩塌、
+> 退化盲区）作为边界地图公开发表——承认 AI 的局限并设计与之共存的流程，比宣称万能更接近临床可信。
 
 ---
 
@@ -48,10 +48,17 @@
 python scripts/evaluate_your_model.py --demo        # 用本仓库自训模型演示
 # 或接入你的模型：模块提供 predict_pair(src01)->(pred01, trust_2d)，见脚本头注释
 
-# 2) 启动本地应用（单图/整卷/批量质控/部署校准/历史记录）
+# 2) 启动本地应用（单图/整卷/批量质控/部署校准/压力测试/历史记录）
 启动应用.bat        # 或 python app/app.py → http://127.0.0.1:7860
 
-# 3) 复现论文全部实验
+# 3) 微服务模式（HIS/PACS 集成）
+uvicorn api:app --port 8000
+#   POST /gate      仅输入门控，毫秒级（错模态/域外/退化拦截）
+#   POST /evaluate  翻译+信任分诊 JSON（trust_score/qc_flag/suspicious_regions）
+#   GET  /docs      交互式 API 文档
+# Docker 骨架见 Dockerfile（GPU 直通，权重/数据卷挂载）
+
+# 4) 复现论文全部实验
 python scripts/eval_uq_baselines.py --task T1->T2 --ckpt checkpoints/self_t1t2.ckpt
 python scripts/eval_tumor_sparsify.py            # BraTS 体区复检
 python scripts/eval_crossinst_brats.py           # 跨机构迁移
