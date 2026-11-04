@@ -1,0 +1,49 @@
+\section{相关工作}
+\label{sec:related}
+
+\subsection{医学图像翻译}
+非配对跨模态合成经历了从对抗式翻译的演进——CycleGAN~\cite{zhu2017cyclegan} 与
+pix2pix~\cite{isola2017pix2pix} 确立了非配对与配对两种范式，随后是多对比度 MRI 专精模型，
+如条件 GAN~\cite{dar2019cgan} 与 CNN--Transformer 混合架构
+（ResViT~\cite{dalmaz2022resvit}）——再到扩散类模型。SynDiff~\cite{ozbey2023syndiff}
+以循环一致性先验的对抗式扩散实现无监督医学翻译；I2I-Galip~\cite{korkmaz2025i2igalip}
+用视觉--语言模型替换判别器以提升效率。平行地，扩散桥不经过各向同性噪声瓶颈，
+而是直接连接源与目标两个图像分布：DDPM~\cite{ho2020ddpm} 及其基于分数的推广~\cite{song2021scoresde}
+提供了数学骨架，谱系中包括基于分数的 NCSN~\cite{song2019ncsn}、改进的调度~\cite{nichol2021iddpm}、
+图像到图像薛定谔桥~\cite{liu2023i2sb}、带数据一致性的直接扩散桥~\cite{chung2023directbridge}、
+对偶隐式桥~\cite{su2023ddib}、神经薛定谔桥~\cite{kim2024nsb}、直接迭代反演~\cite{delbracio2023indi}
+以及三维桥理论~\cite{zhang2025bridge3d}。SelfRDB~\cite{arslan2025selfrdb} 将软先验桥与
+自洽递归采样结合，报告了最先进性能。上述工作均以翻译质量为导向，不提供输出可信度信息。
+\textbf{与之相对，本文在不改动翻译模型的前提下，从其推理过程内部提取可信度证据。}
+
+\subsection{医学影像不确定性量化}
+模型级方法包括 MC-Dropout~\cite{gal2016mcdropout}、深度集成~\cite{lakshminarayanan2017ensembles}
+与测试时增强~\cite{ayhan2018tta}；不确定性可分为偶然性与认知性两类~\cite{kendall2017uncertainties}。
+扩散模型语境下，集成式不确定性已用于分割~\cite{wolleb2022diffusionensembles} 与
+显微图像复原~\cite{osuna2024microscopy}：对同一输入采样多条链，以链间分歧度量困难区域。
+本文继承该思路但有三点不同：(i) 我们的集成成员来自扩散桥自身原生的随机终点与隐变量，
+无需注入额外随机性；(ii) 我们配对了一个与采样方差正交的免费信号——CReF，
+它只存在于自洽递归采样器中；(iii) 我们将信号与临床 QC 门控和输入防御闭环整合为完整工作台。
+值得注意的是，部分桥模型将这种随机性当作缺陷主动抑制~\cite{song2024ccbm}；
+本文论证：在可信度评估的任务里，它是资产。
+
+\subsection{生成影像的幻觉评估与可信放射 AI}
+与本文目标最接近的 Hallucination Index~\cite{tivnan2024hallucinationindex}
+将生成式重建模型的编造内容量化为对重复采样计算的\emph{图像级}指标；
+MUMINS~\cite{oliveras2026mumins} 以元数据为条件进行医学图像合成并训练不确定性感知
+预测头输出空间不确定性图；\cite{jin2026trustworthy} 的测量几何分析证明了测量算子
+何时能够区分不同解，从算子设计视角解释幻觉。这些方法或需要图像粒度的重复采样，
+或需要改动架构并重训，或需要事前的算子设计。TrustBridge 则在\emph{现有采样器内部}
+提取像素级证据，不需要架构改动或标注，并进一步支持规则化门控：我们的框架与
+RAISE~\cite{cardoso2023raise} 这类输出护栏生命周期互补，为
+AI-RADS~\cite{fink2026airads} 这类报告框架所呼唤的客观像素级证据提供供给，
+同时保持全自动。
+
+\paragraph{超越采样分歧：语义与病理感知信号。}
+分歧式证据对采样器\emph{持续一致地犯}的错误是盲的——我们在 \S4 量化了这一局限。
+三条并行研究线从评估侧攻击该问题，并构成我们这类信任层的自然下一步。
+CRAFT~\cite{chung2026craft} 用基础模型的临床对齐分数（CAS）按临床标准为生成图像打分，
+抑制幻觉样内容；ViCTr~\cite{susladkar2025victr} 通过 EWC 正则的 LoRA 适配实现
+分级严重度控制的病理感知合成；DDWM~\cite{li2025ddwm} 只学习目标域分布、
+经小波分解融合域不变解剖，实现零样本翻译。三者或依赖基础模型、或需重训、
+或需架构改动；它们与采样器原生证据互补，我们在 \S5 作为未来工作讨论。

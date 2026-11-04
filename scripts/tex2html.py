@@ -91,9 +91,9 @@ def _flush(c, t):
     return _cmds(c, t)
 
 
-def tex_to_html(latex_dir):
+def tex_to_html(latex_dir, src="main.tex"):
     c = Converter()
-    s = _read(latex_dir + "/main.tex")
+    s = _read(latex_dir + "/" + src)
     s = re.sub(r"(?m)^%.*$", "", s)
     s = re.sub(r"\\input\{(\w+)\}", lambda m: _read(f"{latex_dir}/{m.group(1)}.tex"), s)
     m = re.search(r"\\bibliographystyle", s)

@@ -1,8 +1,11 @@
-"""论文初稿预览：main.tex → HTML（tex2html 转换）→ PDF（Edge 渲染）。
+"""论文初稿预览：main.tex / main_zh.tex → HTML（tex2html 转换）→ PDF（Edge 渲染）。
 
 初稿审阅用。正式投稿版在 Overleaf 用 main.tex + references.bib 编译。
-v0.2：不再手工维护内嵌 HTML，从 main.tex 单一来源转换（scripts/tex2html.py）。
+用法:
+  python scripts/paper_pdf.py                # 英文版 main.tex → TrustBridge_paper_draft.pdf
+  python scripts/paper_pdf.py --zh           # 中文版 main_zh.tex → TrustBridge_paper_draft_zh.pdf
 """
+import argparse
 import os
 
 from playwright.sync_api import sync_playwright
@@ -12,11 +15,20 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 from tex2html import tex_to_html  # noqa: E402
 
-LATEX = os.path.join(ROOT, "docs", "latex")
-SRC = os.path.join(LATEX, "paper_preview.html")
-OUT = os.path.join(LATEX, "TrustBridge_paper_draft.pdf")
+ap = argparse.ArgumentParser()
+ap.add_argument("--zh", action="store_true", help="转换中文版 main_zh.tex")
+args = ap.parse_args()
 
-title, author, date, html, refs = tex_to_html(LATEX)
+LATEX = os.path.join(ROOT, "docs", "latex")
+SRC_NAME = "main_zh.tex" if args.zh else "main.tex"
+OUT = os.path.join(LATEX, "TrustBridge_paper_draft_zh.pdf" if args.zh
+                   else "TrustBridge_paper_draft.pdf")
+SRC = os.path.join(LATEX, "paper_preview_zh.html" if args.zh else "paper_preview.html")
+
+title, author, date, html, refs = tex_to_html(LATEX, src=SRC_NAME)
+FONT_STACK = ("'Microsoft YaHei','PingFang SC','Noto Sans SC',"
+              "'Georgia','Times New Roman',serif" if args.zh
+              else "'Georgia','Times New Roman',serif")
 
 
 title_h = "<h1>" + title + "</h1>" if title else "<h1>TrustBridge</h1>"
@@ -31,7 +43,7 @@ HTML = f"""<!DOCTYPE html>
 <script defer src="https://registry.npmmirror.com/katex/0.16.9/files/dist/contrib/auto-render.min.js"
  onload="renderMathInElement(document.body,{{delimiters:[{{left:'$$',right:'$$',display:true}},{{left:'$',right:'$',display:false}}],throwOnError:false}});"></script>
 <style>
- body{{font-family:'Georgia','Times New Roman',serif;max-width:860px;margin:0 auto;
+ body{{font-family:{FONT_STACK};max-width:860px;margin:0 auto;
       padding:40px 50px;color:#111;line-height:1.72;font-size:15px;background:#fff;}}
  h1{{font-size:24px;text-align:center;margin-bottom:4px;}}
  h2{{font-size:17px;margin:26px 0 8px;border-bottom:1.5px solid #2563eb;padding-bottom:3px;color:#1e3a8a;}}
@@ -54,7 +66,7 @@ HTML = f"""<!DOCTYPE html>
  sup{{font-size:11px;}}
  ol{{padding-left:22px;}} li{{margin:4px 0;}}
 </style></head><body>
-<div class="draft-banner">DRAFT v0.2 (auto-converted from main.tex) — internal review ·
+<div class="draft-banner">DRAFT v0.4 (auto-converted from {SRC_NAME}) — internal review ·
 compile source: main.tex + references.bib + related_work.tex (Overleaf-ready)</div>
 {title_h}{author_h}{date_h}
 {html}

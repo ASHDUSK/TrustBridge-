@@ -14,10 +14,12 @@ vision--language model for efficiency. In parallel, bridges connect the two
 image distributions directly rather than through an isotropic-noise bottleneck:
 DDPMs~\cite{ho2020ddpm} and their score-based generalization~\cite{song2021scoresde}
 provide the mathematical backbone, with score-based
-NCSN~\cite{song2019ncsn}, improved schedules~\cite{nichol2021iddpm}, direct
+NCSN~\cite{song2019ncsn}, improved schedules~\cite{nichol2021iddpm}, image-to-image
+Schr{\"o}dinger bridges~\cite{liu2023i2sb}, direct
 diffusion bridges with data consistency~\cite{chung2023directbridge}, dual
 implicit bridges~\cite{su2023ddib}, neural Schr{\"o}dinger
-bridges~\cite{kim2024nsb}, and direct iterative inversion~\cite{delbracio2023indi}
+bridges~\cite{kim2024nsb}, direct iterative inversion~\cite{delbracio2023indi},
+and 3D bridge theory~\cite{zhang2025bridge3d}
 spanning the design space. SelfRDB~\cite{arslan2025selfrdb} combines a soft-prior
 bridge with self-consistent recursive sampling and reports state-of-the-art
 multi-contrast translation, while explicitly leaving \emph{uncertainty
