@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>TrustBridge 论文精读教程 · 逐章逐式拆解（v0.4 配套）</title>
+<link rel="stylesheet" href="https://registry.npmmirror.com/katex/0.16.9/files/dist/katex.min.css">
+<script defer src="https://registry.npmmirror.com/katex/0.16.9/files/dist/katex.min.js"></script>
+<script defer src="https://registry.npmmirror.com/katex/0.16.9/files/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+ :root{--blue:#1e3a8a;--acc:#2563eb;--warn:#b45309;--bad:#b91c1c;--ok:#15803d;
+       --bg:#f8fafc;--card:#ffffff;--line:#e2e8f0;}
+ *{box-sizing:border-box}
+ body{font-family:'Microsoft YaHei','PingFang SC','Noto Sans SC',sans-serif;
+      max-width:960px;margin:0 auto;padding:32px 20px 80px;color:#111;line-height:1.85;
+      font-size:15.5px;background:#eef2f7;}
+ h1{font-size:26px;text-align:center;margin-bottom:4px;color:var(--blue);}
+ .sub{text-align:center;color:#555;font-size:13.5px;margin-bottom:20px;}
+ h2{font-size:20px;color:var(--blue);border-bottom:2px solid var(--acc);
+    padding-bottom:6px;margin:38px 0 14px;scroll-margin-top:12px;}
+ h3{font-size:17px;color:var(--blue);margin:26px 0 8px;}
+ h4{font-size:15.5px;margin:18px 0 6px;}
+ .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+       padding:18px 22px;margin:14px 0;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+ .box{border-radius:8px;padding:10px 16px;margin:10px 0;font-size:14.5px;}
+ .intuition{background:#eff6ff;border-left:4px solid var(--acc);}   /* 💡 直觉 */
+ .trap{background:#fef3c7;border-left:4px solid #f59e0b;}            /* ⚠ 易错 */
+ .origin{background:#f0fdf4;border-left:4px solid var(--ok);}        /* 🔍 数字出处 */
+ .review{background:#fdf2f8;border-left:4px solid #db2777;}          /* 🎤 答辩/审稿 */
+ table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#fff;}
+ th,td{border:1px solid #cbd5e1;padding:6px 10px;text-align:left;}
+ th{background:#eff6ff;}
+ .toc{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 22px;
+      column-count:2;column-gap:36px;font-size:14px;}
+ .toc a{color:var(--acc);text-decoration:none;display:block;padding:2px 0;}
+ .toc a:hover{text-decoration:underline;}
+ details{background:#fff;border:1px solid var(--line);border-radius:8px;
+         padding:10px 16px;margin:8px 0;}
+ summary{cursor:pointer;font-weight:600;color:var(--blue);}
+ code{background:#eef2ff;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+ pre{background:#0f172a;color:#e2e8f0;padding:14px 18px;border-radius:8px;
+     overflow-x:auto;font-size:13px;line-height:1.6;}
+ .eq{margin:10px 0;text-align:center;overflow-x:auto;}
+ .num{color:var(--warn);font-weight:700;}
+ .kbd{display:inline-block;background:#1e293b;color:#fff;border-radius:4px;
+      padding:0 8px;font-size:12.5px;}
+ nav.top{position:sticky;top:0;background:#eef2f7ee;backdrop-filter:blur(4px);
+         padding:6px 0;z-index:9;font-size:13px;}
+ nav.top a{color:var(--acc);text-decoration:none;margin-right:14px;}
+ .formula-note{font-size:13.5px;color:#475569;}
+ .arrow{color:var(--acc);font-weight:700;}
+ @media print{body{background:#fff} .toc{column-count:1}}
+</style>
+</head>
+<body>
+
+<h1>TrustBridge 论文精读教程</h1>
+<div class="sub">配套论文：《重新思考扩散桥医学图像翻译中的不确定性量化：陷阱、基线与边界》（v0.4 / main_zh.tex）<br>
+比《前置知识教程》（docs/05）更进一步：不再是"读懂背景"，而是"读懂这篇论文的每一句话为什么这样写"。</div>
+
+<nav class="top">
+ <a href="#route">阅读路线</a><a href="#overview">一页概览</a><a href="#prep">预备知识</a>
+ <a href="#abstract">摘要</a><a href="#method">方法精读</a><a href="#exp">实验精读</a>
+ <a href="#numbers">数字溯源</a><a href="#qa">答辩问答</a><a href="#quiz">自测题</a><a href="#gloss">术语表</a>
+</nav>
+
+<h2 id="route">0 · 阅读路线（先选你的打开方式）</h2>
+<div class="card">
+<table>
+<tr><th>路线</th><th>适合谁</th><th>怎么走</th><th>耗时</th></tr>
+<tr><td><b>快速过</b></td><td>只想知道论文说了啥</td><td>§1 一页概览 → §2.3 口径陷阱 → §4 摘要精读</td><td>15 分钟</td></tr>
+<tr><td><b>精读</b></td><td>要复现 / 写相关工作的同行</td><td>全文顺序读，重点 §3 方法精读 + §5 数字溯源</td><td>2–3 小时</td></tr>
+<tr><td><b>答辩冲刺</b></td><td>项目组成员准备被问</td><td>§6 每个数字的出处 → §7 十问答辩 → §8 自测题全对</td><td>1 小时 ×3 天</td></tr>
+</table>
+<p style="font-size:13.5px;color:#555">配套文件：论文正文 <code>docs/latex/main_zh.tex</code>（中文）/ <code>main.tex</code>（英文），
+PDF <code>TrustBridge_paper_draft_zh.pdf</code>。教程引用的章节号（如 §4.2）两版一致。</p>
+</div>
+
+<h2 id="overview">1 · 一页概览：这篇论文在干什么</h2>
+<div class="card">
+<p><b>一句话版本</b>：我们给医学图像翻译模型装了一层"免训练的可信度仪表盘"，然后<em>用比原计划狠得多的方式验证它</em>——发现并修正了领域内一个评估陷阱，划清了这套仪表盘的能力边界。</p>
+<p><b>主张结构（读任何一节时都带着这个地图）</b>：</p>
+<table>
+<tr><th>主张</th><th>证据位置</th><th>强度</th></tr>
+<tr><td>① 整图口径是 UQ 指标的陷阱（空气像素虚高）</td><td>§4.1 口径声明 + 摘要 0.93→0.78</td><td>🔴 核心方法学贡献</td></tr>
+<tr><td>② 自训模型上，CReF+融合信号全面胜过等预算基线</td><td>§4.4 表2 上半（0.900/0.816）</td><td>🟢 主结果</td></tr>
+<tr><td>③ 信号跨机构迁移成立</td><td>§4.9（0.950±0.021）</td><td>🟢 外部验证</td></tr>
+<tr><td>④ 失效边界：官方 T2→T1 全盲、肿瘤不定位、图像级 QC 失效、自信崩塌不可察觉</td><td>§4.4 下半 / §4.8 / §4.6 / §4.2</td><td>🟡 边界即贡献</td></tr>
+<tr><td>⑤ 免训练信号不能替代外部验证</td><td>§4.2 守卫失效（PASS 94.2）</td><td>🔴 最重要的阴性</td></tr>
+</table>
+<div class="box intuition">💡 <b>为什么主张④⑤是加分而非减分</b>：医学 AI 落地最怕"模型做不到却伪装做得到"。论文把每一个测出来的失效都变成可引用的边界陈述，并公开撤回了自己早期的虚高数字——这是"克制与严谨"的直接证据，答辩时主动讲比被问出来强十倍。</div>
+</div>
+
+<h2 id="prep">2 · 预备知识补给站（比 docs/05 更贴本文）</h2>
+
+<h3>2.1 从扩散模型到扩散桥，30 秒版</h3>
+<div class="card">
+<p>普通扩散模型：图像 → 一步步加噪声变成纯噪声 → 学会一步步去噪。<b>绕远路</b>。</p>
+<p>扩散桥：源图像 $y$ 直接连到目标图像 $x_0$，前向过程在两端之间"架桥"——
+反向时从 $y_\epsilon$（加噪的源图）出发走到 $x_0$。<b>直通车</b>，所以 10 步就够。</p>
+<p>SelfRDB 的独特处：每一步里生成器不只算一次，而是<b>递归自洽</b>——用当前估计
+$\tilde x_0^{(r)}$ 再喂给自己，得到 $\tilde x_0^{(r+1)}$，直到前后两次差异 &lt; 1%。
+"模型反复修改都改不动的地方"就是要害信息（§3.2 会用）。</p>
+</div>
+
+<h3>2.2 本文的五个 UQ 词汇（先背下来，后文全是它们）</h3>
+<div class="card">
+<table>
+<tr><th>词</th><th>定义（本文口径）</th><th>直觉</th></tr>
+<tr><td>信任图 / TrustMap</td><td>$[0,1]$ 逐像素图，1=可信</td><td>"模型哪里心虚"的热力图</td></tr>
+<tr><td>AUROC</td><td>低信任像素预测"误差前 10% 像素"的能力；0.5=瞎猜，1=完美</td><td>排序质量，不受量纲影响</td></tr>
+<tr><td>ΔPSNR@20%</td><td>删掉信任最低的 20% 像素后，剩余像素 PSNR 提升多少 dB</td><td>"按信任图裁掉可疑部分能涨多少分"</td></tr>
+<tr><td>十分位分离（Sep）</td><td>最不可信 10% 像素的平均误差 ÷ 最可信 10% 的平均误差</td><td>&gt;1 越大越有区分度；注意分母趋零时会爆炸</td></tr>
+<tr><td>体掩码口径</td><td>只统计源图 &gt;0.02 的像素（身体内部），排除背景空气</td><td>本文全部信任指标的默认口径，见 §2.3</td></tr>
+</table>
+</div>
+
+<h3>2.3 口径陷阱的机制（必须真正理解的一件事）</h3>
+<div class="card">
+<p><b>为什么空气像素会虚高 AUROC？</b>AUROC 问的是："随机抽一个高误差像素和一个低误差像素，
+低信任的那个误差更大的概率是多少？"空气像素<b>两个属性都极端</b>：误差≈0（背景就是背景）、
+信任≈1（模型对背景毫无分歧）。它们作为"低误差且高信任"的样本，把 AUROC 的分母撑得
+极其好算——任何一个在体内算不上好的信号，加上空气都能刷出漂亮数字。</p>
+<p><b>虚高多少？</b>同一融合信号：整图 AUROC <span class="num">0.90</span> → 体区内
+<span class="num">0.78</span>；整图 ΔPSNR@20% <span class="num">+5.2 dB</span> → 体区内
+<span class="num">+0.4 dB</span>；十分位分离 <span class="num">35–73×</span> →
+<span class="num">~2×</span>。</p>
+<div class="box trap">⚠ 自查题：如果你读到任何一篇医学图像翻译 UQ 论文报了 &gt;0.9 的整图 AUROC，
+第一反应该是什么？——先看它有没有做体区掩码。（本文贡献之一就是把这一点变成社区标准动作。）</div>
+</div>
+
+<h2 id="abstract">3 · 摘要精读：每一句都在干什么</h2>
+<div class="card">
+<table>
+<tr><th>摘要句</th><th>功能</th><th>关键数字</th></tr>
+<tr><td>"两个隐蔽的陷阱……空气像素……0.93 崩落到 0.78……撤回自己早期的数字"</td><td>先声夺人：方法学发现 + 坦诚姿态</td><td>0.93→0.78</td></tr>
+<tr><td>"分歧不等于误差……T2→T1 官方权重上全部等于随机"</td><td>第二陷阱：给所有分歧类方法（含自己）泼冷水</td><td>0.465–0.505</td></tr>
+<tr><td>"什么能够幸存？……CReF……随机桥集成不确定性"</td><td>亮出方法（注意设问句式：先破后立）</td><td>—</td></tr>
+<tr><td>"AUROC 0.90/0.82……单链 0.88/0.79……肿瘤 0.91……跨机构 0.95"</td><td>幸存者的完整成绩单（后文 §4.4/4.8/4.9 逐一对账）</td><td>0.90/0.82/0.88/0.79/0.91/0.95</td></tr>
+<tr><td>"复现性分析……崩塌至 ~15dB……结构性的（NCC 0.41）……信任层未能察觉（PASS 94/100）"</td><td>最重要的阴性结果前置到摘要（大胆但诚实）</td><td>15dB / NCC 0.41 / 94.2</td></tr>
+<tr><td>"发布全部阴性结果……作为给领域的边界地图"</td><td>定位声明：这是一张地图，不是万能药</td><td>—</td></tr>
+</table>
+<div class="box review">🎤 审稿人视角：摘要把阴性结果放在和阳性结果同等显眼的位置，这是"边界地图"叙事的门槛动作——后面正文必须兑现每一个数字，否则会死得更惨。（本文 §5 数字溯源表保证全部可对账。）</div>
+</div>
+
+<h2 id="method">4 · 方法精读（§3，逐式拆解）</h2>
+
+<h3>4.1 桥的数学（§3.1）：五个符号各自是谁</h3>
+<div class="card">
+<p>$$x_t=\mu_{x_0,t}\,x_0+\mu_{y,t}\,y+\sigma_t\,\epsilon$$</p>
+<ul>
+<li>$x_0$：目标图像（想合成的那个模态）——训练时才有，推理时是"未知答案"</li>
+<li>$y$：源图像（真实拍到的），$y_\epsilon$ 是它加噪后的版本，反向采样的起点</li>
+<li>$\sigma_t^2=\gamma s_t^2/(\bar s_t^2+s_t^2)$：噪声调度。<b>软先验</b>的含义：桥的中间点不像
+DDPM 那样最终变成纯噪声，而是被"软"地拉向源图像——两端都被数据钉住</li>
+<li>递归：$G_\theta(x_t,t,y,\tilde x_0^{(r)})\to\tilde x_0^{(r+1)}$，直到
+$\|\tilde x_0^{(r+1)}-\tilde x_0^{(r)}\|$ 的全局均值 &lt; 1%。官方配置 $T{=}10$ 步、$R{=}2$ 层</li>
+</ul>
+<div class="box intuition">💡 <b>全文最重要的一句潜台词</b>：递归停机判据只用了残差的"全局均值"——
+空间信息被扔掉了。CReF 的全部创新就是把这份数据捡回来。读方法节时始终盯住
+"哪些量被算了但被扔了"。</div>
+</div>
+
+<h3>4.2 CReF 定义式（§3.2，式 1）逐项拆</h3>
+<div class="card">
+<p>$$\mathrm{CReF}(p)=\frac{1}{K}\sum_{t\in\mathcal{K}}\sum_r\bigl|\tilde x_0^{(r+1)}(p)-\tilde x_0^{(r)}(p)\bigr|$$</p>
+<table>
+<tr><th>成分</th><th>含义</th><th>为什么这样设计</th></tr>
+<tr><td>$\mathcal{K}$（K=3）</td><td>只取最后 3 个反向步</td><td>最后几步最靠近数据分布，那里的"不自洽"才是幻觉信号；早期步的不自洽是正常的中间状态</td></tr>
+<tr><td>内层 $\sum_r$</td><td>对该步内最多 2 层递归的残差求和</td><td>递归本来就是"改不动了才停"，多层残差叠加=反复修正的总量</td></tr>
+<tr><td>$|\cdot|$ 逐像素绝对值</td><td>不做空间平滑</td><td>保留像素级定位能力（对比：全局均值是 SelfRDB 的用法）</td></tr>
+<tr><td>成本</td><td>零</td><td>递归本来就要算，只是多存 K 张单通道图（几 MB）</td></tr>
+</table>
+<div class="box trap">⚠ <b>常见误读</b>："CReF 高 = 一定幻觉"。错。CReF 度量的是<em>采样器无法自洽</em>，
+即"方差型"证据。模型<b>一致地错</b>（自洽的幻觉）它看不见——这正是 §4.2 模型级崩塌实验和
+§4.8 肿瘤分析共同证实的边界。正确读法：CReF 高 = 高风险候选区，需要人来复核。</div>
+</div>
+
+<h3>4.3 集成分歧与融合（§3.3–3.4）</h3>
+<div class="card">
+<p>$U(p)=\operatorname{std}_n\{x_0^{(n)}(p)\}$：N 条独立链（不同终点噪声与隐变量）的逐像素标准差。
+与 MC-Dropout / 深度集成的区别：<b>不需要注入 dropout、不需要训练多个网络</b>——随机性是桥原生的。
+论文特意引用 \cite{song2024ccbm}：别的桥模型把这种随机性当缺陷去抑制；本文论证"评估任务里它是资产"。</p>
+<p>融合：$$\TrustMap(p)=1-w_1\widehat{\mathrm{CReF}}(p)-w_2\widehat{U}(p),\quad w_1{=}0.6,\ w_2{=}0.4$$</p>
+<ul>
+<li>$\widehat{\cdot}$ = 99 分位截断的稳健归一化：防个别极端像素把整图压扁</li>
+<li>权重敏感性：AUROC 随 $w_1\in[0.3,0.6]$ 变化 &lt;0.01——融合不敏感，所以默认 0.6/0.4 不是精调出来的魔法数（这反而是稳健性证据）</li>
+<li>§4.4 的诚实结论：融合 ≈ 仅集成（0.900 vs 0.897）——<b>CReF 的卖点不是精度而是零成本</b>（单链 0.880 vs 集成 40 次前传）</li>
+</ul>
+</div>
+
+<h3>4.4 输入门控 v2（§3.5）：三层防御各拦什么</h3>
+<div class="card">
+<table>
+<tr><th>层</th><th>机制</th><th>拦什么（实测）</th></tr>
+<tr><td>① 硬规则</td><td>体区标准差 &lt;0.01 → OOD</td><td>平坦/常数图，100%</td></tr>
+<tr><td>② Mahalanobis</td><td>11 维特征到 6 类中心的最小马氏距离 &gt; τ=388.76 → OOD</td><td>极端分布外；对模糊剂量敏感（2.9→15.0）但对小幅错位无感（→2.9）</td></tr>
+<tr><td>③ 分类器</td><td>6 类 logistic：脑 T1/T2/FLAIR、盆腔 T1w/T2w、CT</td><td>错模态/错部位——1,160 例矩阵中 562 例非法输入 <b>0 漏放</b></td></tr>
+</table>
+<p>策略分级的原因（§5 局限 3）：盆腔 T1w 未见患者 52.5% 被误判为脑类——硬拒绝会拦掉一半合法输入，
+所以 CT 任务降级为警示放行。<b>阈值是按"漏放=0"优先、再最小化误拒来定的</b>，这个优先序要在答辩时讲清楚。</p>
+</div>
+
+<h2 id="exp">5 · 实验精读（§4）：每一张表怎么读</h2>
+
+<h3>5.1 §4.2 复现危机：三段证据链</h3>
+<div class="card">
+<ol>
+<li><b>崩塌本身</b>：官方权重在独立制备的 IXI 上 ~15 dB（我们实测体区 12.98），论文值 31.56。
+排除研究排除了错位/z 偏移/强度窗/裁剪/方向 → 差异在作者未公开的预处理。</li>
+<li><b>崩塌的性质</b>：NCC 0.41、SSIM 29%、GT 拟合线性校正后仍 12.3 dB → <b>结构性错误</b>，
+不是"加个亮度校准就能救"的光度偏移。</li>
+<li><b>守卫失效</b>：信任层对崩塌模型给 PASS 94.2/100、低信任 5.9%（比健康自训模型还低）。
+采样器对错误输出高度自洽 → 度量自洽性的信号全部失明。</li>
+</ol>
+<div class="box review">🎤 这是全文最重要的阴性结果，注意它的双重身份：既是"我们方法的边界"，
+又是"对整个方差类 UQ 路线的警告"——<b>免训练内部信号无法察觉自信地犯错的基座模型，外部验证不可替代</b>。
+答辩被问"你这系统什么时候会害人"，答案就在这里（并配 §4.9 退化盲区：模糊反而抬高信任）。</div>
+</div>
+
+<h3>5.2 表 1（翻译质量）：三组数字的关系</h3>
+<div class="card">
+<ul>
+<li><b>IXI raw 19.8/20.4 vs 论文 31.56</b>：差距 = 全局强度偏移 + 128²/30ep 预算</li>
+<li><b>校正后 31.74/32.52</b>：内容保真度已达论文设定。但校正参数由 GT 拟合——
+表注明说这是"误差分解诊断，不是方法指标"。答辩必须主动说，不能等人问</li>
+<li><b>盆腔自训 24.36/23.13 &gt; 官方 21.24/19.04</b>：真实 CT 真值、大间隙任务反超——
+反驳"大间隙任务肯定不行"的预设</li>
+</ul>
+</div>
+
+<h3>5.3 表 2（UQ 对照）：双面板设计的用意</h3>
+<div class="card">
+<ul>
+<li><b>上半（自训模型）</b>：本文方法全面获胜 0.900/0.816，且 CReF 单链 0.880/0.792 →
+"四分之一预算拿大部分价值"</li>
+<li><b>下半（官方权重）</b>：排序反转（TTA 0.808 &gt; 融合 0.783）+ T2→T1 全盲 →
+<b>同一方向、同一协议、两个模型、相反结论</b></li>
+<li>等预算原则：所有分歧基线都是 40 次前传（TTA=4 增广×1 链；噪声=4 抽样×1 链），
+CReF 单链只有 10 次——成本论据才能成立</li>
+<li>Sep 列的爆炸值（182×）要在脚注里交代：最可信十分位误差近零，Sep 只作数量级陈述</li>
+</ul>
+<div class="box trap">⚠ 若被问"为什么不用 MC-Dropout 当基线"：它是又一种分歧信号，
+本文已证明分歧类信号在纹理主导误差上集体失明——换一种注入随机性的方式不改变结构性失效。
+（且 NCSNpp 的 dropout=0，MC-Dropout 需要重训才有效。）</div>
+</div>
+
+<h3>5.4 §4.6 图像级 QC 的"降级"逻辑</h3>
+<div class="card">
+<p>r = +0.47/+0.26（自训，方向正确）但 −0.10（BraTS 官方，消失）；PASS≥75 拦 88%、
+REJECT&lt;55 只拦 3%。三条证据合起来的结论不是"阈值调一调就好"，而是
+<b>"全局标量根本不该做 QC 门"</b>——解剖差异太大，任何体区均值都无法跨队列分离好坏。
+替代方案：像素/区域级证据（信任图+低信任区域清单）给医生，图像级只做分诊启发式。
+应用里的"部署校准向导"就是这条结论的工程化。</p>
+</div>
+
+<h3>5.5 七项边界实验（§4.7）：每项一句话教训</h3>
+<div class="card">
+<table>
+<tr><th>#</th><th>实验</th><th>结果</th><th>教训</th></tr>
+<tr><td>1</td><td>可学习聚合（16 特征 GBDT）</td><td>一方向 +0.010，另一方向 −0.03</td><td>6 被试验证集必然过拟合；≥20 被试才值得重开</td></tr>
+<tr><td>2</td><td>图像级回归预测 PSNR</td><td>0.32–0.33 &lt; 信任均值 0.38–0.40</td><td>手工特征打不过现成信号</td></tr>
+<tr><td>3</td><td>自适应重采样</td><td>−0.016 dB，成本 +35–75%</td><td>集成均值已饱和，别在采样策略上找质量</td></tr>
+<tr><td>4</td><td>往返一致信号</td><td>AUROC 0.503</td><td>"来路检验"不产生新信息</td></tr>
+<tr><td>5</td><td>强度调和</td><td>−0.8/−0.9 dB</td><td>无真值时逐片强度偏移不可盲估</td></tr>
+<tr><td>6</td><td>官方 T2→T1 信号失效</td><td>全部 ≈ 随机；自训同方向 0.816 正常</td><td>失效属于（模型,方向）对，不属于任务</td></tr>
+<tr><td>7</td><td>语义代理（NMI/梯度方向）</td><td>0.42–0.67，组合无增益</td><td>与源图的结构一致是更弱的误差代理</td></tr>
+</table>
+</div>
+
+<h3>5.6 §4.8 肿瘤分析：撤回的写法范例</h3>
+<div class="card">
+<p>注意 (iii) 的结构：<b>先给数字</b>（0.51±0.10）→ <b>解释旧值为何错</b>（0.871 系整图空气负例伪影）
+→ <b>给出反直觉事实</b>（瘤内信任 0.772 &gt; 瘤外 0.727）→ <b>上升为一般教训</b>（像素方差度量
+合成方差，不度量临床显著性）。撤回不是一句"对不起"，而是把错误变成可复用的方法论资产。</p>
+</div>
+
+<h3>5.7 §4.9 压力测试：不对称响应的含义</h3>
+<div class="card">
+<p>模糊/噪声：门控 maha 剂量敏感（2.9→15.0 / →9.3），信任图<b>反而更自信</b>（0.63→0.70，
+输入越平滑采样器越容易自洽）；小幅错位：两者都无感。结论："知道自己不知道"由<b>输入门控</b>承担，
+信任图管<b>结构</b>不管<b>光度</b>——两层各管一段，部署时缺一不可。跨机构迁移 0.950±0.021
+则证明结构信号本身不是"见过患者"的伪影（注意保留项：我方预处理一致、每组 6 例）。</p>
+</div>
+
+<h2 id="numbers">6 · 数字溯源表（答辩对账用）</h2>
+<div class="card">
+<table>
+<tr><th>论文数字</th><th>产生脚本</th><th>结果文件</th></tr>
+<tr><td>表1 全部行</td><td>eval_gt_trust.py / 各评估运行</td><td>results/2026-09-27_CT_* 等</td></tr>
+<tr><td>表2 上半（自训）</td><td>eval_uq_baselines.py --ckpt self_*.ckpt</td><td>results/2026-11-04_uq_baselines_T1_T2、_T2_T1</td></tr>
+<tr><td>表2 下半（官方）</td><td>eval_uq_baselines.py（默认 ckpt）</td><td>results/2026-11-03_uq_baselines_*</td></tr>
+<tr><td>肿瘤 0.911 / +3.12 / 1.60× / 0.51</td><td>eval_tumor_sparsify.py / eval_tumor_corrected.py</td><td>results/2026-11-03_tumor_sparsify_body、2026-10-31_tumor_trust_corrected</td></tr>
+<tr><td>跨机构 0.950/0.863</td><td>eval_crossinst_brats.py</td><td>results/2026-11-04_crossinst_brats</td></tr>
+<tr><td>退化响应（maha 2.9→15.0 等）</td><td>eval_degradation.py</td><td>results/2026-11-03_degradation_response</td></tr>
+<tr><td>崩塌甄别（PASS 94.2 / NCC 0.41）</td><td>eval_paper_extras.py collapse / eval_collapse_ncc.py</td><td>results/2026-11-04_collapse_alarm、_collapse_ncc</td></tr>
+<tr><td>routing 平坦曲线</td><td>eval_paper_extras.py routing</td><td>results/2026-11-04_routing_cref_tta</td></tr>
+<tr><td>语义代理阴性</td><td>eval_paper_extras.py semantic</td><td>results/2026-11-04_semantic_proxy</td></tr>
+<tr><td>QC 操作点（r 值 / 88%、3%）</td><td>eval_qc_thresholds.py / eval_slice_scores.py</td><td>results/2026-11-04_qc_thresholds、_slice_scores_*</td></tr>
+<tr><td>门控 0/562</td><td>train_gate_v2.py eval</td><td>results/2026-11-01_gate_v2</td></tr>
+</table>
+<p style="font-size:13.5px;color:#555">每个 results/ 目录都含 summary.json（汇总）与 per_slice/per_case.csv（逐片原始数据）——答辩若被质疑任何一个数字，当场打开对应 CSV。</p>
+</div>
+
+<h2 id="qa">7 · 审稿人/评委模拟十问（带参考回答）</h2>
+<div class="card">
+<details open><summary>Q1 你的 Trust Score 和 MC-Dropout 比有什么优势？</summary>
+<p>三点：(1) 免训练、零结构改动——MC-Dropout 需要网络带 dropout 并重训；(2) 等预算对照（表2）
+显示我们融合信号 0.900/0.816 全面领先；(3) 更重要的诚实陈述：所有分歧类信号共享同一盲区
+（纹理主导误差），MC-Dropout 不会例外——我们的贡献是把这个边界测出来并公开。</p></details>
+
+<details><summary>Q2 摘要里说信任层对 15dB 崩塌"未能察觉"，那这系统还有什么用？</summary>
+<p>它的价值恰恰建立在诚实边界上：能拦的（错模态/域外/退化输入，0/562 漏放）是真拦，
+拦不住的（自信崩塌）我们测出来并写进 Limitations。临床安全的第一原则是知道自己不知道——
+这比一个声称万能的分数更接近可信。</p></details>
+
+<details><summary>Q3 为什么校正 PSNR 可以用 GT？这不是作弊吗？</summary>
+<p>表注明确写了：校正列参数由真值估计，是"误差分解诊断"而非方法指标；raw 才是诚实工作点。
+它的作用是分离"内容误差"与"强度窗误差"，证明 128² 模型结构保真度达论文设定——
+配套证据是 NCC 0.88–0.91 与盆腔/肿瘤的外部验证。</p></details>
+
+<details><summary>Q4 肿瘤定位 0.51 = 随机，这是不是说明信任图没用？</summary>
+<p>0.51 说明的是"方差类信号不度量临床显著性"——它仍然精确定位了模型的误差集中区
+（0.911）。两个数字针对两个不同问题：前者问"信任图是不是病灶检测器"（不是），
+后者问"信任图能不能指出模型容易错的地方"（能，0.911）。</p></details>
+
+<details><summary>Q5 只有 6 个 BraTS 患者，外部效度够吗？</summary>
+<p>三点补充：跨机构实验用了 CBICA 6 例+留出患者 6 例共 240 片；每项结论同时有 IXI/BraTS/
+SynthRAD 三数据集交叉；论文 Limitations 明确把小样本列为限制。我们选择"小样本+全公开逐片
+数据"而不是"藏起小样本"，本身就是可复核性的一部分。</p></details>
+
+<details><summary>Q6 体掩码口径会不会是你挑出来的有利口径？</summary>
+<p>恰恰相反：体区口径下我们的数字<b>全面下降</b>（0.90 整图→0.78 体区是官方模型；
+自训模型 0.90 是体区数字）。受益于整图口径虚高的是我们早期被撤回的数字——
+口径修正对我们是净损失，这是它可信的原因。</p></details>
+
+<details><summary>Q7 TTA 等基线在官方权重上赢了你们，怎么解释？</summary>
+<p>这就是表2双面板存在的意义：信号排序是（模型,方向）的函数——自训模型上我们赢
+（0.900 vs 0.820），官方模型上 TTA 赢。我们不做"哪个信号永远最好"的主张，
+做的是"必须逐对验证"的方法论主张。</p></details>
+
+<details><summary>Q8 CReF 说零成本，显存和延时的代价呢？</summary>
+<p>K=3 张单通道 128² 图（约 200KB），无额外前向；逐片实测耗时与基线一致（3.1s vs 3.1s）。
+批量场景下存 K 张图的内存开销相对特征图可忽略。</p></details>
+
+<details><summary>Q9 三级门控阈值 75/55 怎么定的？</summary>
+<p>论文 §4.6 直接承认：这是演示默认值，与实际分布错位（拦 88%/3%）——所以论文把它降级为
+"分诊启发式"，应用里提供部署校准向导按本机构数据重整定。这是"机制存在、数值待标定"的
+诚实呈现。</p></details>
+
+<details><summary>Q10 这工作离临床还差什么？</summary>
+<p>按六层框架说：现在处于 Level 1（技术有效性）+ 部分 Level 2b（试用反馈）。
+差的：多专家盲审、任务级临床效用（如 sCT 剂量计算误差）、多中心部署校准。
+论文最后一句的"引入放射科医生反馈"就是下一层的入口。</p></details>
+</div>
+
+<h2 id="quiz">8 · 自测题（15 道，点开对答案）</h2>
+<div class="card">
+<details><summary>1. 体掩码口径下，整图 AUROC 从 0.93 掉到多少？为什么掉？</summary>
+<p>0.78。空气像素"高信任+零误差"混入整图统计，抬高了任何"低信任预测高误差"的分数。</p></details>
+<details><summary>2. CReF 的两个输入信号分别叫什么、各度量什么？</summary>
+<p>CReF（递归收敛残差场）度量"模型反复修正仍无法自洽"（认知性/结构性不自洽）；
+U（集成分歧）度量"多次独立采样之间的不稳定"（采样一致性）。二者正交互补。</p></details>
+<details><summary>3. 单链 CReF（零成本）的 AUROC 是多少？满预算集成呢？</summary>
+<p>单链 0.880/0.792（T1→T2/T2→T1 自训）；融合 0.900/0.816；仅集成 0.897/0.806。
+成本论据：单链 10 次前传 vs 集成 40 次。</p></details>
+<details><summary>4. 表2 下半证明了一件什么事？用一句话。</summary>
+<p>同一方向同一协议，官方权重上信号排序反转且 T2→T1 全盲——失效边界属于（模型,方向）对。</p></details>
+<details><summary>5. 官方权重 15dB 崩塌的三个甄别证据？</summary>
+<p>NCC 0.41（结构错）、SSIM 29%、GT 拟合线性校正后仍 12.3dB（不是光度偏移）。</p></details>
+<details><summary>6. 崩塌模型在信任层那里得了多少分？这证明什么？</summary>
+<p>PASS 94.2/100、低信任 5.9%。证明：自洽性无法证明正确性；免训练内部信号无法察觉自信崩塌；
+外部验证不可替代。</p></details>
+<details><summary>7. 肿瘤分析里"瘤内信任 0.772 vs 瘤外 0.727"说明什么？</summary>
+<p>模型对（误差更大的）瘤区反而更自信——方差类 UQ 度量合成方差而非临床显著性，
+任何临床 UQ 层必须对照病理标注审计。</p></details>
+<details><summary>8. 退化输入（模糊）时信任图怎么响应？谁在管这件事？</summary>
+<p>不降反升（0.63→0.70，输入平滑更易自洽）；退化检测由输入门控承担（maha 2.9→15.0）；
+小幅错位两层都无感（开放问题）。</p></details>
+<details><summary>9. 跨机构迁移实验的两组对象和结果？</summary>
+<p>同源留出患者 0.863±0.155、跨机构 CBICA 0.950±0.021（参照 0.911）；稀疏化 +2.78/+3.12dB。
+保留项：预处理配方一致、每组 6 例。</p></details>
+<details><summary>10. 图像级 QC 的最终结论是"阈值要重调"吗？</summary>
+<p>更强：全局标量根本不应作 QC 门（r 弱且随模型方向不一致；75/55 错位拦 88%/3%）。
+建议像素/区域级证据给人、图像级只做分诊启发式。</p></details>
+<details><summary>11. 七项边界实验里，哪一项否定了"语义代理能补盲区"的设想？</summary>
+<p>第 7 项：NMI/梯度方向一致性 0.42–0.67，弱于分歧信号 0.82–0.90，组合无增益。</p></details>
+<details><summary>12. 输入门控 0/562 是什么口径？误拒呢？</summary>
+<p>1,160 例验证矩阵中 562 例非法/域外输入获得放行判定的为 0；合法输入误拒 0。
+CT 任务错配降级为警示是因为 T1w 52.5% 误判率会让硬拒绝拦掉一半合法输入。</p></details>
+<details><summary>13. 融合权重 0.6/0.4 是精调的吗？</summary>
+<p>不是。AUROC 对 w1∈[0.3,0.6] 变化 <0.01——不敏感本身就是稳健性证据。</p></details>
+<details><summary>14. "等预算"在表2 里具体指什么？</summary>
+<p>所有分歧基线都用 40 次生成器前传（与 N=4 集成相同）；CReF 单链只有 10 次——
+所以"CReF 单链接近集成"是成本论据的根基。</p></details>
+<details><summary>15. 论文的核心方法论建议（给社区的三条）？</summary>
+<p>① UQ 主张一律在体区内评估；② 必须对照等预算廉价基线；③ 按（模型, 方向）逐一验证后再部署。</p></details>
+</div>
+
+<h2 id="gloss">9 · 术语速查表</h2>
+<div class="card">
+<table>
+<tr><th>术语</th><th>一句话解释</th></tr>
+<tr><td>扩散桥 / SelfRDB</td><td>源图直连目标图的生成模型；SelfRDB 加自洽递归采样，T=10 步 R=2 层</td></tr>
+<tr><td>CReF（收敛残差场）</td><td>最后 K=3 步内相邻递归估计的逐像素差异场；零成本认知性信号</td></tr>
+<tr><td>随机桥集成分歧</td><td>N 条链（不同终点噪声/隐变量）预测的逐像素标准差</td></tr>
+<tr><td>体掩码口径</td><td>只在源图>0.02 的像素上算信任指标，排除空气</td></tr>
+<tr><td>AUROC / ΔPSNR@20% / Sep</td><td>定位排序 / 稀疏化增益 / 误差分离比（三个互补指标）</td></tr>
+<tr><td>等预算对照</td><td>所有方法用相同前传次数（40），CReF 单链除外（10，标注为免费）</td></tr>
+<tr><td>失效边界</td><td>方法确定无效的条件清单：纹理主导误差、自信崩塌、图像级聚合、肿瘤定位、小幅错位</td></tr>
+<tr><td>输入门控 v2</td><td>六类分类 + Mahalanobis OOD + 平坦硬规则；合成前拦截</td></tr>
+<tr><td>部署校准向导</td><td>用本机构带真值切片重整定三级阈值的工具（应用内置）</td></tr>
+<tr><td>口径陷阱</td><td>整图统计被空气像素虚高的系统性效应（本文核心方法学发现）</td></tr>
+</table>
+</div>
+
+<p class="sub" style="margin-top:34px">教程完 · 配套论文 v0.4 · 数字溯源以 results/ 目录 CSV 为准 ·
+发现不一致请以论文正文为最终口径并回报项目组</p>
+
+</body>
+</html>
