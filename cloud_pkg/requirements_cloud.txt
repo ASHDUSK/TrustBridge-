@@ -1,0 +1,8 @@
+# AutoDL 镜像自带 torch/cuda；以下为补充安装（镜像选 PyTorch 2.x + CUDA 12.1 即可）
+lightning==2.6.6
+numpy
+scipy
+pyyaml
+matplotlib
+rich
+jsonargparse[signatures]
