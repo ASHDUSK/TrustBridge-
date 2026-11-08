@@ -57,9 +57,14 @@ HTML = f"""<!DOCTYPE html>
  table{{border-collapse:collapse;width:100%;margin:14px 0;font-size:12.5px;}}
  th,td{{border:1px solid #ccc;padding:4px 7px;text-align:center;}}
  th{{background:#eff6ff;}}
- .tbl{{margin:14px 0;}}
+ .tbl{{margin:14px 0;page-break-inside:avoid;}}
+ .fig{{page-break-inside:avoid;}}
+ table{{page-break-inside:avoid;}}
  .cap{{font-size:12.5px;color:#555;margin-bottom:4px;line-height:1.5;}}
  .eq{{margin:12px 0;text-align:center;}}
+ .fig{{margin:16px 0;text-align:center;}}
+ .fig img{{border:1px solid #ddd;border-radius:4px;}}
+ .fig .cap{{font-size:12.5px;color:#555;margin-top:6px;line-height:1.5;text-align:left;}}
  .refs{{font-size:12.5px;line-height:1.6;}}
  .draft-banner{{background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;
                padding:8px 16px;font-size:12.5px;color:#92400e;margin-bottom:24px;text-align:center;}}

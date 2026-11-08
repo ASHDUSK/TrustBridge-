@@ -125,11 +125,13 @@ def tex_to_html(latex_dir, src="main.tex"):
         c.labels[m.group(1)] = str(i + 1)
     for i, m in enumerate(re.finditer(r"(?s)\\begin\{equation\}.*?\\label\{([^{}]*)\}", s)):
         c.labels[m.group(1)] = str(i + 1)
+    for i, m in enumerate(re.finditer(r"(?s)\\begin\{figure\}.*?\\label\{([^{}]*)\}", s)):
+        c.labels[m.group(1)] = str(i + 1)
     s = re.sub(r"\\label\{[^{}]*\}", "", s)
 
     body = []
     pos = 0
-    env_re = re.compile(r"(?s)\\begin\{(table|equation|abstract)\*?\}")
+    env_re = re.compile(r"(?s)\\begin\{(table|equation|abstract|figure)\*?\}")
     list_re = re.compile(r"(?s)\\begin\{(enumerate|itemize)\}")
     sec_re2 = re.compile(r"\\(section|subsection|paragraph)\{((?:[^{}]|\{[^{}]*\})*)\}")
 
@@ -164,12 +166,27 @@ def tex_to_html(latex_dir, src="main.tex"):
                 body.append(f'<div class="abstract"><b>ABSTRACT</b><br>{_flush(c, content)}</div>')
             elif env == "equation":
                 body.append(f"<div class='eq'>$${content.strip()}$$</div>")
+            elif env == "figure":
+                img = re.search(r"\\includegraphics\[[^\]]*\]\{([^{}]*)\}", content)
+                cap = re.search(r"(?s)\\caption\{(.*?)\}\s*\\label", content)
+                lm = re.search(r"\\label\{([^{}]*)\}", content)
+                c.counters.setdefault("figure", 0)
+                c.counters["figure"] += 1
+                if lm:
+                    c.labels[lm.group(1)] = str(c.counters["figure"])
+                path = img.group(1).replace(".pdf", ".png") if img else ""
+                capt = _flush(c, cap.group(1)) if cap else ""
+                figpfx = "图" if src.endswith("_zh.tex") else "Fig."
+                body.append(
+                    f"<div class='fig'><img src='{path}' style='max-width:94%;'>"
+                    f"<div class='cap'><b>{figpfx} {c.counters['figure']}.</b> {capt}</div></div>")
             else:
                 cap = re.search(r"(?s)\\caption\{(.*?)\}\s*(?:\\label|\\begin\{tabular\})", content)
                 c.counters["table"] += 1
                 rows_html = tabular_to_html(c, content)
                 capt = _flush(c, cap.group(1)) if cap else ""
-                body.append(f"<div class='tbl'><div class='cap'><b>Table {c.counters['table']}.</b> {capt}</div>{rows_html}</div>")
+                tblpfx = "表" if src.endswith("_zh.tex") else "Table"
+                body.append(f"<div class='tbl'><div class='cap'><b>{tblpfx} {c.counters['table']}.</b> {capt}</div>{rows_html}</div>")
         else:
             env = m.group(1)
             end = s.index(r"\end{" + env + "}", m.end())

@@ -41,8 +41,9 @@ but differ in three ways: (i) our ensemble members are sampled from a
 native to the sampler, not injected ad hoc; (ii) we pair ensemble dispersion
 with a second, complementary signal---the convergence residual---that
 is unique to self-consistent recursive samplers and costs nothing; and (iii) we
-fuse both into a calibrated trust map with a clinical QC gate rather than
-reporting dispersion alone. Notably, concurrent bridge models actively
+fuse both into a pixel-wise trust map integrated with a QC workflow,
+whose image-level semantics we then audit, rather than reporting dispersion
+alone. Notably, concurrent bridge models actively
 \emph{suppress} this stochasticity for reconstruction
 \cite{song2024ccbm}; we argue it is an asset when the task is trust assessment,
 even though it is a defect for point synthesis.
@@ -76,4 +77,4 @@ LoRA adaptation; and DDWM~\cite{li2025ddwm} achieves zero-shot translation by
 learning only the target-domain distribution and fusing domain-invariant
 anatomy through wavelet decomposition. All three require either foundation
 models, retraining, or architectural change; they are complementary to
-sampler-native evidence and are discussed as future work in \S\ref{sec:discussion}.
+sampler-native evidence and are discussed as future work in \S6.

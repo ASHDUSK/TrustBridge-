@@ -20,16 +20,21 @@
  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:12.5px;}
  th,td{border:1px solid #ccc;padding:4px 7px;text-align:center;}
  th{background:#eff6ff;}
- .tbl{margin:14px 0;}
+ .tbl{margin:14px 0;page-break-inside:avoid;}
+ .fig{page-break-inside:avoid;}
+ table{page-break-inside:avoid;}
  .cap{font-size:12.5px;color:#555;margin-bottom:4px;line-height:1.5;}
  .eq{margin:12px 0;text-align:center;}
+ .fig{margin:16px 0;text-align:center;}
+ .fig img{border:1px solid #ddd;border-radius:4px;}
+ .fig .cap{font-size:12.5px;color:#555;margin-top:6px;line-height:1.5;text-align:left;}
  .refs{font-size:12.5px;line-height:1.6;}
  .draft-banner{background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;
                padding:8px 16px;font-size:12.5px;color:#92400e;margin-bottom:24px;text-align:center;}
  sup{font-size:11px;}
  ol{padding-left:22px;} li{margin:4px 0;}
 </style></head><body>
-<div class="draft-banner">DRAFT v0.2 (auto-converted from main.tex) — internal review ·
+<div class="draft-banner">DRAFT v0.4 (auto-converted from main.tex) — internal review ·
 compile source: main.tex + references.bib + related_work.tex (Overleaf-ready)</div>
 <h1>Rethinking Uncertainty Quantification in Diffusion-Bridge Medical Image<div class='subtitle'>Translation: Pitfalls, Baselines, and Boundaries (system: TrustBridge — a training-free trust layer with Convergence Residual Fields)</div></h1><div class='authors'>
   Author list to be finalized<br>
@@ -43,7 +48,7 @@ Two pitfalls quietly corrupt most uncertainty-quantification (UQ) claims made
 for generative medical image translation. First, <em>background air pixels</em>:
 they are trusted and near-zero-error, so pooling them with body pixels
 inflates whole-image UQ metrics severalfold—we show a headline localization
-score of $0.93$ collapsing to $0.78$ under a within-body protocol, and retract
+score of $0.90$ collapsing to $0.78$ under a within-body protocol, and retract
 our own earlier numbers that benefited from it. Second, <em>dispersion is
 not error</em>: across an equal-budget comparison with TTA and input-noise
 baselines, every dispersion-style signal—including ours—is at chance on
@@ -52,13 +57,13 @@ what <em>does</em> survive. From the self-consistent recursive diffusion-bridge
 sampler (SelfRDB) we harvest two training-free signals: the
 <em>Convergence Residual Field</em> (CReF), the per-pixel discrepancy between
 successive recursive target estimates that the original sampler computes and
-discards, and <em>stochastic-bridge ensemble uncertainty</em>. Fused into a
-pixel-wise trust map with a three-tier QC gate and a six-class input gate
-with out-of-distribution rejection, they deliver, under the honest protocol:
-AUROC $0.90$ (T1→T2, self-trained; $0.88$ for a single zero-cost chain),
-$0.91$ on real tumor patients, and $0.95$ <em>cross-institution</em> on
-never-seen subjects. CReF-triggered routing recovers most of full-budget TTA
-quality at a fraction of its cost. A dedicated reproducibility analysis
+discards, and <em>stochastic-bridge ensemble uncertainty</em>. Fused into a pixel-wise trust map, they deliver, under the within-body protocol:
+AUROC $0.90$/$0.82$ (T1→T2/T2→T1, self-trained; $0.88$/$0.79$ for
+a single zero-cost chain), $0.91$ on real tumor patients, and $0.95$
+<em>cross-institution</em> on never-seen subjects. A CReF-triggered routing
+scheme adds nothing on these models—single-chain CReF already dominates
+full-budget TTA—further confirming that which signal wins is
+model-dependent. A dedicated reproducibility analysis
 explains why officially released weights collapse to ${\sim}15$ dB on
 independently prepared data (paper value 31.56 dB)—structurally, not
 just photometrically (NCC 0.41)—and shows that the trust layer
@@ -124,10 +129,7 @@ for future uncertainty evaluations (§§4).
 <h4>Contributions.</h4>
 <ol><li>We propose the Convergence Residual Field (CReF) and stochastic-bridge ensemble uncertainty as
         complementary, training-free trust signals for diffusion-bridge
-        translation, fused into a pixel-wise trust map with a three-tier QC
-        gate, plus a six-class input gate with Mahalanobis
-        out-of-distribution rejection that hard-blocks mismatched or anomalous
-        inputs before synthesis (§§3).
+        translation, fused into a pixel-wise trust map (§§3).
   </li><li>We introduce a body-masked evaluation protocol for pixel-wise trust
         metrics, quantify the whole-image inflation it corrects, and re-evaluate
         our signals against equal-budget dispersion baselines (TTA,
@@ -136,14 +138,16 @@ for future uncertainty evaluations (§§4).
         equal-budget baselines, $0.91$ on real tumor patients, and $0.95$
         cross-institution; on the <em>official</em> weights the same protocol
         flips the ranking and blinds T2→T1 entirely (§§4).
-  </li><li>We report seven controlled experiments whose outcomes are mixed or
-        negative—adaptive resampling, learnable aggregation, image-level
+  </li><li>We report seven controlled boundary experiments (§§4)
+        plus a model-level failure—the trust layer's blindness to a collapsed
+        base model (§§4.2)—whose outcomes are mixed or
+        negative: adaptive resampling, learnable aggregation, image-level
         regression, intensity harmonization, round-trip consistency, the
         official-weights T2→T1 signal failure, and the semantic-proxy
-        null result—and use them to delineate the method's
+        null result. We use them to delineate the method's
         boundary: dispersion signals track error only where error is
-        spatially structured, and learning-based aggregation overfits
-        six-subject validation sets (§§4, §§5).
+        spatially structured, and learning-based aggregation overfits six-subject validation sets
+        (§§4, §§5).
 </li></ol>
 
 <h2>2. Related Work</h2>
@@ -162,10 +166,12 @@ vision–language model for efficiency. In parallel, bridges connect the two
 image distributions directly rather than through an isotropic-noise bottleneck:
 DDPMs<sup>[1]</sup> and their score-based generalization<sup>[11]</sup>
 provide the mathematical backbone, with score-based
-NCSN<sup>[12]</sup>, improved schedules<sup>[2]</sup>, direct
-diffusion bridges with data consistency<sup>[13]</sup>, dual
-implicit bridges<sup>[14]</sup>, neural Schrödinger
-bridges<sup>[15]</sup>, and direct iterative inversion<sup>[16]</sup>
+NCSN<sup>[12]</sup>, improved schedules<sup>[2]</sup>, image-to-image
+Schrödinger bridges<sup>[13]</sup>, direct
+diffusion bridges with data consistency<sup>[14]</sup>, dual
+implicit bridges<sup>[15]</sup>, neural Schrödinger
+bridges<sup>[16]</sup>, direct iterative inversion<sup>[17]</sup>,
+and 3D bridge theory<sup>[18]</sup>
 spanning the design space. SelfRDB<sup>[3]</sup> combines a soft-prior
 bridge with self-consistent recursive sampling and reports state-of-the-art
 multi-contrast translation, while explicitly leaving <em>uncertainty
@@ -174,55 +180,56 @@ this sampler: we keep the model frozen and harvest two signals that SelfRDB
 discards.
 
 <h3>2.2 Uncertainty Quantification in Medical Imaging</h3>
-Per-pixel uncertainty is commonly obtained by MC-Dropout<sup>[17]</sup>,
-deep ensembles<sup>[18]</sup>, or test-time
-augmentation<sup>[19]</sup>; the epistemic/aleatoric taxonomy of
-<sup>[20]</sup> frames these as sampling-based epistemic
+Per-pixel uncertainty is commonly obtained by MC-Dropout<sup>[19]</sup>,
+deep ensembles<sup>[20]</sup>, or test-time
+augmentation<sup>[21]</sup>; the epistemic/aleatoric taxonomy of
+<sup>[22]</sup> frames these as sampling-based epistemic
 estimates. Diffusion ensembles follow the same recipe: implicit segmentation
-ensembles<sup>[21]</sup> and per-pixel standard deviations
-across diffusion restorations<sup>[22]</sup> established that
+ensembles<sup>[23]</sup> and per-pixel standard deviations
+across diffusion restorations<sup>[24]</sup> established that
 inter-sample dispersion tracks difficult image regions. We inherit this insight
 but differ in three ways: (i) our ensemble members are sampled from a
 <em>diffusion bridge</em> whose stochastic endpoints and latent variables are
 native to the sampler, not injected ad hoc; (ii) we pair ensemble dispersion
 with a second, complementary signal—the convergence residual—that
 is unique to self-consistent recursive samplers and costs nothing; and (iii) we
-fuse both into a calibrated trust map with a clinical QC gate rather than
-reporting dispersion alone. Notably, concurrent bridge models actively
+fuse both into a pixel-wise trust map integrated with a QC workflow,
+whose image-level semantics we then audit, rather than reporting dispersion
+alone. Notably, concurrent bridge models actively
 <em>suppress</em> this stochasticity for reconstruction
-<sup>[23]</sup>; we argue it is an asset when the task is trust assessment,
+<sup>[25]</sup>; we argue it is an asset when the task is trust assessment,
 even though it is a defect for point synthesis.
 
 <h3>2.3 Hallucination Assessment and Trustworthy Radiology AI</h3>
 Closest to our goal, the Hallucination Index<sup>[4]</sup>
 quantifies fabricated content of generative reconstruction models as an
-<em>image-level</em> metric over repeated samples; MUMINS<sup>[24]</sup>
+<em>image-level</em> metric over repeated samples; MUMINS<sup>[26]</sup>
 conditions medical image synthesis on metadata and trains an uncertainty-aware
 prediction head to output a spatial uncertainty map; and the measurement-geometry
-analysis of <sup>[25]</sup> proves when a measurement operator can
+analysis of <sup>[27]</sup> proves when a measurement operator can
 distinguish solutions, explaining hallucination from an operator-design
 perspective. These approaches either require repeated sampling at image
 granularity, architectural modification with retraining, or ex-ante operator
 design. TrustBridge instead derives pixel-level evidence <em>inside</em> the
 existing sampler, requires no architectural change or labels, and additionally
 supports rule-based gating: our framework is complementary to output-guardrail
-lifecycles such as RAISE<sup>[26]</sup> and provides the objective,
+lifecycles such as RAISE<sup>[28]</sup> and provides the objective,
 pixel-level evidence that reporting frameworks like
-AI-RADS<sup>[27]</sup> call for, while remaining fully automatic.
+AI-RADS<sup>[29]</sup> call for, while remaining fully automatic.
 
 <h4>Beyond sampling dispersion: semantic and pathology-aware signals.</h4>
 Dispersion-style evidence is blind to errors the sampler makes
 <em>consistently</em>—a limitation we quantify in §§4. Three
 concurrent research lines attack this from the evaluation side and mark the
-natural next step for trust layers like ours. CRAFT<sup>[28]</sup>
+natural next step for trust layers like ours. CRAFT<sup>[30]</sup>
 scores generated images against clinical criteria with a foundation-model
-Clinical Alignment Score, reducing hallucination-like content; ViCTr<sup>[29]</sup>
+Clinical Alignment Score, reducing hallucination-like content; ViCTr<sup>[31]</sup>
 makes synthesis pathology-aware with graded severity control via EWC-regularized
-LoRA adaptation; and DDWM<sup>[30]</sup> achieves zero-shot translation by
+LoRA adaptation; and DDWM<sup>[32]</sup> achieves zero-shot translation by
 learning only the target-domain distribution and fusing domain-invariant
 anatomy through wavelet decomposition. All three require either foundation
 models, retraining, or architectural change; they are complementary to
-sampler-native evidence and are discussed as future work in §§5.
+sampler-native evidence and are discussed as future work in §6.
 
 
 <h2>3. Method</h2>
@@ -256,8 +263,11 @@ where $\mathcal{K}$ is the capture window ($K{=}3$ here). Intuition: pixels the
 generator keeps revisiting without converging are pixels for which its learned
 prior provides insufficient evidence—prime candidates for hallucinated
 content. The signal is epistemic in the sense
-of<sup>[20]</sup> and costs nothing: the recursion runs
-anyway.
+of<sup>[22]</sup> and costs nothing: the recursion runs
+anyway. Figure 1 relates both signals to the sampling chain.
+
+<div class='fig'><img src='figures/fig1_overview_v2.png' style='max-width:94%;'><div class='cap'><b>Fig. 1.</b> </div></div>
+
 
 <h3>3.3 Stochastic-bridge ensemble uncertainty</h3>
 The bridge endpoint $y_\epsilon$ and the generator's internal latent variables
@@ -267,47 +277,33 @@ per-pixel standard deviation,
 $U(p)=\operatorname{std}_{n}\{x_0^{(n)}(p)\}$, yields a second signal that
 measures <em>sampling consistency</em>: pixels whose synthetic value is unstable
 across chains are regions where the model holds no stable belief. Unlike
-MC-Dropout<sup>[17]</sup> or deep
-ensembles<sup>[18]</sup>, no dropout is injected and no
+MC-Dropout<sup>[19]</sup> or deep
+ensembles<sup>[20]</sup>, no dropout is injected and no
 separate networks are trained; the dispersion arises from the bridge sampler
 itself. Prior diffusion-ensemble work in segmentation and
-restoration<sup>[21,22]</sup> established
+restoration<sup>[23,24]</sup> established
 that such dispersion tracks difficult regions; we pair it with a
 non-dispersion signal (CReF) that is orthogonal to sampling variance.
 
-<h3>3.4 Trust map, Trust Score, and QC gate</h3>
+<h3>3.4 Trust map fusion</h3>
 Both fields are robustly normalized (99th-percentile clipping) and fused as
 $trust map(p)=1-w_1\widehat{\mathrm{CReF}}(p)-w_2\widehat{U}(p)$ with
-$w_1{=}0.6$, $w_2{=}0.4$. The image-level $Trust Score$ is the body-region mean
-of $trust map$ scaled to 0–100, gated by a three-tier rule (PASS/REVIEW/
-REJECT); §§4 analyzes the operating points actually achieved by
-these thresholds on three cohorts. A per-slice report (PNG + JSON) records the
-maps, the per-step recursion statistics, and the input-gate verdict.
-
-<h4>Input gate v2.</h4>
-Before any synthesis, a six-class classifier over body-standardized percentile
-and gradient features (brain T1/T2/FLAIR, pelvis T1w/T2w, pelvis CT) verifies
-that the input matches the declared source modality, with a Mahalanobis
-out-of-distribution test (threshold at the validation 99.5th percentile)
-and a flat-image hard rule. In a 1,160-case validation matrix spanning
-matched, cross-modality, cross-anatomy, and synthetic-OOD suites, <em>no</em>
-illegal input (0/562) received a passing verdict, while no valid input was
-false-rejected. Mismatched inputs to brain tasks are hard-blocked; mismatched
-inputs to pelvis-CT tasks are warned and annotated, because unseen-patient
-pelvic T1w slices are confused with brain classes in $52.5%$ of cases
-(§§5).
+$w_1{=}0.6$, $w_2{=}0.4$. The feasibility of image-level aggregation (the body-region mean) is
+analyzed as a negative result in §§4 (image-level QC operating
+points); per-slice archiving (trust maps and per-step recursion statistics)
+is provided with the open-source repository.
 
 <h2>4. Experiments</h2>
 
 
 <h3>4.1 Setup</h3>
 <h4>Datasets.</h4>
-<b>IXI</b><sup>[31]</sup>: 40 healthy subjects (T1/T2/PD), subject-wise
+<b>IXI</b><sup>[33]</sup>: 40 healthy subjects (T1/T2/PD), subject-wise
 split 26/6/8 with no subject overlap; $4,000{+}$ paired axial slices under
 the official protocol (per-slice statistics, official mean-norm PSNR/SSIM).
-<b>BraTS2018</b><sup>[32]</sup>: 6 HGG patients (60 evaluated
+<b>BraTS2018</b><sup>[34]</sup>: 6 HGG patients (60 evaluated
 tumor-bearing slices) with real co-registered T2 ground truth and tumor
-segmentation; source FLAIR. <b>SynthRAD2023 pelvis</b><sup>[33]</sup>:
+segmentation; source FLAIR. <b>SynthRAD2023 pelvis</b><sup>[35]</sup>:
 10 patients, center-matched T1w→CT and T2w→CT, 80 test slices each.
 <h4>Models.</h4>
 Two self-trained 128×128 bridges (T2→T1 and T1→T2, 30 epochs,
@@ -326,8 +322,8 @@ illustrate the effect: the same fused signal scores AUROC $0.78$ within the
 body but $0.90$ on the whole image, and its whole-image sparsification gain
 ($+5.2$ dB) overstates the clinically meaningful within-body gain
 ($+0.4$ dB) by an order of magnitude. All earlier conclusions in our project
-that relied on whole-image trust metrics were re-evaluated; two were
-retracted (§§4.8).
+that relied on whole-image trust metrics were re-evaluated; two were retracted (§§4.8,
+§§4.4).
 <h4>Ethics.</h4>
 All three datasets are public research datasets; all processing is local; no
 output is used for clinical decisions.
@@ -343,9 +339,8 @@ freedom (rigid misalignment, slice $z$-shift, intensity windowing, cropping,
 orientation) traces the gap to pre-processing details the original authors do
 not publish; the companion SynDiff release is independently reported to have
 the same problem. We emphasize what this means: <em>a reader who prepares
-the data in any reasonable way cannot reproduce the paper</em>, and the failure
-mode is invisible—the official outputs are structurally coherent images
-with a global intensity offset (NCC ${\sim}0.9$), not noise.
+the data in any reasonable way cannot reproduce the paper</em>, and the outputs are smooth, plausible-looking images rather than noise
+—yet structurally wrong (within-body NCC $0.41$; see below).
 <h4>What the trust layer does and does not see in a collapse.</h4>
 A natural hope is that sampler-native signals would “know” the base model
 is failing. We tested this directly, and the answer is the most important
@@ -362,14 +357,19 @@ predicted at the pixel level, now reproduced at the model level. The lesson
 for deployment is stark: <em>training-free internal signals cannot detect
 a base model that is confidently wrong</em>. They complement, but do not
 replace, external validation against ground truth; a guard layer that has
-never seen its base model fail cannot be trusted to recognize failure.
+never seen its base model fail cannot be trusted to recognize failure
+(Figure 2).
+
+<div class='fig'><img src='figures/fig_collapse_vs_healthy.png' style='max-width:94%;'><div class='cap'><b>Fig. 2.</b> </div></div>
+
 
 <h3>4.3 Translation quality</h3>
 <div class='tbl'><div class='cap'><b>Table 1.</b> Main results (official whole-image mean-norm PSNR/SSIM protocol).
 “Corrected” removes a global linear intensity mismatch whose parameters are
 estimated from the ground truth; it is an <em>error decomposition</em>, not a
 method metric—the raw column is the honest operating point. IXI:
-self-trained 128×128. Pelvis: self-trained, 80 test slices each.
+self-trained 128×128 (60 test slices each). Pelvis: self-trained,
+80 test slices each.
 BraTS: official FLAIR→T2 weights, 60 tumor-bearing slices.</div><table><tr><th>Dataset</th><th>Direction</th><th>PSNR (dB)</th><th>SSIM (%)</th><th>NCC</th><th>Corrected PSNR</th></tr><tr><td>IXI (paper value<sup>[3]</sup>)</td><td>T2→T1</td><td>31.56</td><td>95.65</td><td>–</td><td>–</td></tr><tr><td>IXI, ours</td><td>T2→T1</td><td>19.81$\pm$1.10</td><td>71.0$\pm$6.6</td><td>0.884</td><td>31.74</td></tr><tr><td>IXI, ours</td><td>T1→T2</td><td>20.44$\pm$1.16</td><td>80.4$\pm$4.1</td><td>0.905</td><td>32.52</td></tr><tr><td>Pelvis, ours</td><td>T1w→CT</td><td>24.36$\pm$2.92</td><td>81.6$\pm$4.8</td><td>0.962</td><td>–</td></tr><tr><td>Pelvis, official</td><td>T1w→CT</td><td>21.24$\pm$2.42</td><td>64.3$\pm$6.0</td><td>0.936</td><td>–</td></tr><tr><td>Pelvis, ours</td><td>T2w→CT</td><td>23.13$\pm$0.83</td><td>74.5$\pm$2.7</td><td>0.961</td><td>–</td></tr><tr><td>Pelvis, official</td><td>T2w→CT</td><td>19.04$\pm$0.73</td><td>57.3$\pm$2.9</td><td>0.893</td><td>–</td></tr><tr><td>BraTS2018, official</td><td>FLAIR→T2</td><td>24.06$\pm$1.62</td><td>87.4</td><td>0.944</td><td>–</td></tr></table></div>
 
 Table 1 reports translation quality. On IXI, decomposing the
@@ -396,7 +396,9 @@ median-across-slices ratio of mean error between least- and most-trusted
 deciles; for the self-trained T1→T2 model the most-trusted decile carries
 near-zero error, so Sep is an order-of-magnitude statement rather than a
 precise value. <b>Bottom:</b> the same protocol on the official weights,
-where the signal ranking changes and T2→T1 fails entirely.</div><table><tr><th></th><th colspan='3'>T1→T2 (self)</th><th colspan='3'>T2→T1 (self)</th></tr><tr><td>Signal</td><td>AUROC</td><td>$\Delta$PSNR@20%</td><td>Sep</td><td>AUROC</td><td>$\Delta$PSNR@20%</td><td>Sep</td></tr><tr><td>Random (control)</td><td>0.498</td><td>$\approx$0</td><td>1.0</td><td>0.501</td><td>$\approx$0</td><td>1.0</td></tr><tr><td>Gradient</td><td>0.225</td><td>$-0.45$</td><td>0.54</td><td>0.475</td><td>$-0.55$</td><td>0.40</td></tr><tr><td>Input-noise dispersion</td><td>0.861</td><td>$+1.47$</td><td>65</td><td>0.739</td><td>$+0.97$</td><td>3.0</td></tr><tr><td>TTA dispersion</td><td>0.820</td><td>$+1.33$</td><td>6.3</td><td>0.711</td><td>$+0.79$</td><td>1.9</td></tr><tr><td>CReF only (N=1, free)</td><td>0.880</td><td>$+2.28$</td><td>103</td><td>0.792</td><td>$+1.51$</td><td>2.8</td></tr><tr><td>Ensemble only (N=4)</td><td>0.897</td><td>$+2.34$</td><td>159</td><td>0.806</td><td>$+1.63$</td><td>3.8</td></tr><tr><td><b>Fused (ours)</b></td><td><b>0.900</b></td><td>$\mathbf{+2.67}$</td><td><b>182</b></td><td><b>0.816</b></td><td>$\mathbf{+1.85}$</td><td><b>3.7</b></td></tr><tr><td colspan='7'><em>Same protocol on the official weights (N=4 fused):</em></td></tr><tr><td>Fused (official)</td><td>0.783</td><td>$+0.37$</td><td>–</td><td>0.465</td><td>$+0.21$</td><td>–</td></tr><tr><td>TTA (official)</td><td><b>0.808</b></td><td>$+0.70$</td><td>–</td><td>0.482</td><td>$+0.95$</td><td>–</td></tr><tr><td>All signals (official, T2→T1)</td><td>–</td><td>–</td><td>–</td><td colspan='3'>$0.465$–$0.505$ (chance)</td></tr></table></div>
+where the signal ranking changes and T2→T1 fails entirely.
+Row roles: random=control; gradient/input-noise/TTA=
+equal-budget baselines; CReF/ensemble/fused=ours.</div><table><tr><th></th><th colspan='3'>T1→T2 (self)</th><th colspan='3'>T2→T1 (self)</th></tr><tr><td>Signal</td><td>AUROC</td><td>$\Delta$PSNR@20%</td><td>Sep</td><td>AUROC</td><td>$\Delta$PSNR@20%</td><td>Sep</td></tr><tr><td>Random (control)</td><td>0.498</td><td>$\approx$0</td><td>1.0</td><td>0.501</td><td>$\approx$0</td><td>1.0</td></tr><tr><td>Gradient</td><td>0.225</td><td>$-0.45$</td><td>0.54</td><td>0.475</td><td>$-0.55$</td><td>0.51</td></tr><tr><td>Input-noise dispersion</td><td>0.861</td><td>$+1.47$</td><td>65</td><td>0.739</td><td>$+0.97$</td><td>3.0</td></tr><tr><td>TTA dispersion</td><td>0.820</td><td>$+1.33$</td><td>6.3</td><td>0.711</td><td>$+0.79$</td><td>1.9</td></tr><tr><td>CReF only (N=1, free)</td><td>0.880</td><td>$+2.28$</td><td>103</td><td>0.792</td><td>$+1.51$</td><td>2.8</td></tr><tr><td>Ensemble only (N=4)</td><td>0.897</td><td>$+2.34$</td><td>159</td><td>0.806</td><td>$+1.63$</td><td>3.8</td></tr><tr><td><b>Fused (ours)</b></td><td><b>0.900</b></td><td>$\mathbf{+2.67}$</td><td><b>182</b></td><td><b>0.816</b></td><td>$\mathbf{+1.85}$</td><td><b>3.7</b></td></tr><tr><td colspan='7'><em>Same protocol on the official weights (N=4 fused):</em></td></tr><tr><td>Fused (official)</td><td>0.783</td><td>$+0.37$</td><td>–</td><td>0.465</td><td>$+0.21$</td><td>–</td></tr><tr><td>TTA (official)</td><td><b>0.808</b></td><td>$+0.70$</td><td>–</td><td>0.482</td><td>$+0.95$</td><td>–</td></tr><tr><td>All signals (official, T2→T1)</td><td>–</td><td>–</td><td>–</td><td colspan='3'>$0.465$–$0.505$ (chance)</td></tr></table></div>
 
 Table 2 carries two messages. <b>On self-trained models</b>,
 our fused signal wins outright: AUROC $0.900$/$0.816$ (T1→T2/T2→T1)
@@ -415,16 +417,28 @@ signals per (model, direction) before any deployment (§§5).
 A CReF-triggered routing scheme (uncertain regions re-examined by TTA) was
 tested to recover full-budget TTA quality at lower cost; on the self-trained
 model the curve is flat—pure CReF ($0.880$ at budget 10) already dominates
-full TTA ($0.820$ at budget 50)—so routing adds nothing there, a further
+full TTA ($0.820$)—so routing adds nothing there, a further
 confirmation that which signal wins is model-dependent.
+Figure 3 shows the per-slice six-panel visualization: the spatial
+correspondence between the trust map and the true error underlies all
+quantitative claims.
 
 <h3>4.5 Calibration</h3>
-Within the body, the least-trusted decile carries $1.9$–$2.6\times$ the mean
-absolute error of the most-trusted decile on T1→T2 (Table 2,
-Sep column) and $2.1\times$ on BraTS. These separations are far more modest
+
+<div class='fig'><img src='figures/fig3_trust_example.png' style='max-width:94%;'><div class='cap'><b>Fig. 3.</b> </div></div>
+
+Within the body, the least-trusted decile carries $194\times$ (T1→T2,
+median; the top three bins carry near-zero error, so the ratio is an
+order-of-magnitude statement), $4.0\times$ (T2→T1) and $2.1\times$
+(BraTS) the mean absolute error of the most-trusted decile. These separations
+are far more modest
 than whole-image numbers suggest ($35$–$73\times$), because whole-image
 deciles are dominated by the air/body contrast. The trust map is best read as
-a <em>ranking within the body</em>, not an absolute error magnitude.
+a <em>ranking within the body</em>, not an absolute error magnitude
+(Figure 4).
+
+<div class='fig'><img src='figures/fig_body_decile.png' style='max-width:94%;'><div class='cap'><b>Fig. 4.</b> </div></div>
+
 
 <h3>4.6 Image-level QC operating points</h3>
 The image level is where the layer is weakest, and we quantify this rather
@@ -470,8 +484,9 @@ $0.42$–$0.67$ where dispersion reaches $0.82$–$0.90$, and their
 combination with dispersion does not improve it—structural
 agreement with the <em>source</em> is a weaker error surrogate than
 sampler-native dispersion. These results are reported in full as negative findings:
-at 40 subjects, the pixel-wise trust map is the only reliable product form,
-and learning-based aggregation requires ≥20 validation subjects.
+at 40 subjects, the pixel-wise trust map is the only reliable product
+form; reopening learnable aggregation would require a substantially larger
+validation set (plausibly ≥20 subjects, untested).
 
 <h3>4.8 Tumor-region analysis</h3>
 
@@ -487,12 +502,18 @@ localize tumor tissue itself (within-body AUROC vs. segmentation
 $0.51\pm0.10$; our previously reported $0.871$ was a whole-image artifact of
 air negatives, and mean trust is in fact slightly <em>higher</em> inside tumors,
 $0.772$ vs. $0.727$ outside). Flagged regions indicate where the model is
-unsure about its synthesis, not where pathology is. The lesson goes
+unsure about its synthesis, not where pathology is. This boundary is not an
+implementation defect but a principled blind spot of variance-type signals.
+The lesson goes
 beyond our method: pixel-variance-style UQ measures the <em>variance
 of the synthesis process</em>, not the <em>clinical salience</em> of the
 content—a model can be highly confident (and highly consistent) about
 a pathologically wrong synthesis. Any UQ layer for clinical use must be
-audited against pathology annotations, not only against error maps.
+audited against pathology annotations, not only against error maps
+(Figure 5).
+
+<div class='fig'><img src='figures/fig6_tumor.png' style='max-width:94%;'><div class='cap'><b>Fig. 5.</b> </div></div>
+
 
 <h3>4.9 Stress tests: input degradation and cross-institution transfer</h3>
 
@@ -500,17 +521,20 @@ audited against pathology annotations, not only against error maps.
 We degrade the input along three axes—Gaussian blur ($\sigma\in\{0.5,1,2\}$),
 Gaussian noise ($\sigma\in\{0.01,0.03,0.06,0.1\}$), and horizontal misalignment
 (2–8 px)—over 30 IXI test slices per dose. Translation quality degrades
-mildly (body PSNR $12.9\to11.8$ dB at the worst dose). The response of our
-trust machinery is asymmetric and instructive: the <em>input gate's</em>
-Mahalanobis distance fires dose-dependently for blur ($2.9\to15.0$) and noise
-($\to9.3$) but is blind to small misalignment ($\to2.9$); the <em>trust map</em>
+mildly (body PSNR $12.9\to11.8$ dB at the worst dose; official T1→T2
+weights; trust values in this section are body means, a different aggregation
+from the whole-image score of §§4.2). The response of our
+trust machinery is asymmetric and instructive: the input-side Mahalanobis distance (the open-sourced input-side defense
+layer's OOD score, used here purely as a measurement instrument) fires
+dose-dependently for blur ($2.9\to15.0$) and noise ($\to9.3$) but is blind
+to small misalignment ($\to2.9$); the <em>trust map</em>
 does not flag degraded inputs at all—moderate blur actually <em>raises</em>
 mean trust ($0.63\to0.70$), because a smoother input is easier for the sampler
 to be self-consistent about—and the within-body localization AUROC decays
 with dose ($0.79\to0.70$ under noise; $\to0.67$ under misalignment).
-Knowing-what-you-don't-know here is carried by the <em>input gate</em>, not the
-trust map; misalignment detection remains open (we discuss this in
-§§5).
+Knowing-what-you-don't-know here is carried by the input-side Mahalanobis
+detector, not the trust map; misalignment detection remains open (we discuss
+this in §§5).
 <h4>Cross-institution transfer.</h4>
 The strongest external objection to sampler-native trust evidence is that it
 may be locked to the training cohort. We therefore evaluate the identical
@@ -528,27 +552,25 @@ not an artifact of having seen the patients.
 
 <h2>5. Discussion</h2>
 
-<h4>Reproducibility.</h4>
-Officially released IXI weights reproduce only $\sim$15 dB on independently
-prepared IXI data (the paper reports 31.56 dB). A systematic exclusion study
-(rigid misalignment, $z$-shift, intensity window, cropping, orientation)
-traces the gap to preprocessing details that the original authors do not
-publish; the same issue is independently reported for the companion SynDiff
-release. We therefore trained same-recipe models on our own fully documented
-pipeline and base all quantitative claims on them, while using the official
-weights for high-resolution demonstration.
+<h4>Conditions of validity.</h4>
+The trust layer works when: residual error is spatially structured, the base
+model has not collapsed, and evaluation is performed within the body. It fails
+under: texture-dominated error, bias-type hallucination (lesions), model-level
+collapse (§§4.2), and image-level aggregation. We carry this
+checklist through the discussion below.
 <h4>Quality and trust calibration are separable.</h4>
-On BraTS, our self-trained models beat the official weights on PSNR by
-$+3$–$4$ dB, yet the official weights' trust maps localize error far better.
-The T2→T1 result sharpens the point: a model can be accurate and still
-produce uninformative uncertainty, when its residual error lacks the spatial
-structure that dispersion measures respond to. Uncertainty signals must be
-validated per (model, direction) pair before deployment—a conclusion our
-own negative result makes concrete.
+Our self-trained pelvis bridges beat the official weights on PSNR by
+$+3.1$/$+4.1$ dB, yet the signal ranking changes across models (top/bottom
+panels of Table 2); the sharpest example is the official
+T2→T1 weights, whose trust signals carry no information at all. A model
+can be accurate and still produce uninformative uncertainty, when its
+residual error lacks the spatial structure that dispersion measures respond
+to. Uncertainty signals must be validated per (model, direction) pair before
+deployment—a conclusion our own negative result makes concrete.
 <h4>The protocol trap.</h4>
-Whole-image evaluation of pixel-wise trust metrics is systematically optimistic
-whenever images have trusted, low-error background. Because this describes
-nearly all medical image translation settings, we recommend body-masked
+Whole-image evaluation of pixel-wise trust metrics is systematically
+optimistic whenever images have trusted, low-error background—as almost all
+medical image translation settings do. we recommend body-masked
 evaluation as standard practice for uncertainty quantification in this field,
 and we publish our retraction trail (docs/18 and the corrected analysis
 scripts) as evidence that this is easy to get wrong—we did.
@@ -557,40 +579,36 @@ scripts) as evidence that this is easy to get wrong—we did.
 confidently synthesized hallucination is invisible to it—and the blindness
 extends to the model level: a collapsed base model that is confidently wrong
 receives PASS ($94/100$ mean trust, §§4.2).
-(2) Learnable aggregation overfits 6-subject validation sets; reopening the
-learnable route requires ≥20 validation subjects.
-(3) The input gate hard-blocks brain-task mismatches but only warns on pelvis
-CT tasks: unseen-patient pelvic T1w is confused with brain classes in
-$52.5%$ of cases, so hard blocking would reject half of the valid inputs;
-the Mahalanobis OOD threshold is additionally inflated by cross-scanner
-domain shift, leaving some structured synthetic probes to the classifier
-layer rather than the distance test.
+(2) Learnable aggregation overfits 6-subject validation sets; reopening it
+would require a substantially larger validation set (plausibly ≥20
+subjects, untested).
+(3) Input-level errors (a wrong source modality) are outside the perception
+range of sampler-native signals; they require a dedicated input-side defense
+layer, which we release in the open-source repository but exclude from this
+paper's scope.
 (4) Image-level QC and tumor localization remain unsolved at this scale; the
 trust map additionally does not respond to input degradation—blur even
 raises it (§§4.9)—so degraded-input detection relies on
-the input gate, and small misalignments evade both.
-(5) The three-tier gate thresholds require per-deployment re-tuning
-(§§4).
-(6) All outputs are research demonstrations and must not guide clinical
+the input-side Mahalanobis detector, and small misalignments evade both.
+(5) All outputs are research demonstrations and must not guide clinical
 decisions.
 
 <h2>6. Conclusion</h2>
-We turned the discarded internals of a state-of-the-art diffusion-bridge
-sampler into a pixel-wise trust map, score, and QC workflow for medical image
-translation, and subjected it to a harsher evaluation than we originally
+We built a pixel-wise, training-free trust-quantification layer from the
+discarded internals of a state-of-the-art diffusion-bridge sampler, and subjected it to a harsher evaluation than we originally
 planned: body-masked metrics, equal-budget dispersion baselines, and
 per-cohort operating-point analysis. What survives is a clear, bounded
-picture: on models whose errors are spatially structured (T1→T2; official
-weights on tumor patients), the training-free signals localize unreliable
+picture: on models whose errors are spatially structured (self-trained
+T1→T2/T2→T1; official weights on tumor patients), the training-free signals localize unreliable
 regions well (AUROC $0.82$–$0.95$) and CReF supplies most of that value at
 zero cost; on texture-dominated error the signals—and every baseline we
 tried—are blind. The broader messages are methodological: generative
 samplers compute more evidence than they use, and harvesting it converts a
 synthesis engine into a trust-assessable system; but uncertainty claims in
 image translation must be evaluated within the body and against cheap
-baselines, or they will be overstated. Future work will reopen learnable
-aggregation at larger subject scale, extend the analysis to 256×256
-models, and integrate radiologist feedback.
+baselines, or they will be overstated. Future work will test whether learnable aggregation can be reopened at
+larger subject scale, extend the analysis to 256×256 models, and
+integrate radiologist feedback.
 
 <h4>Acknowledgments.</h4>
 We thank the SelfRDB authors (Bilkent ICON Lab) for releasing code and weights
@@ -600,5 +618,5 @@ clinical decisions.
 
 
 <h2>References</h2>
-<ol class="refs"><li>Ho et al. (2020). Denoising Diffusion Probabilistic Models. <i>Advances in Neural Information Processing Systems</i>.</li><li>Nichol et al. (2021). Improved Denoising Diffusion Probabilistic Models. <i>International Conference on Machine Learning</i>.</li><li>Arslan et al. (2025). Self-Consistent Recursive Diffusion Bridge for Medical Image Translation. <i>Medical Image Analysis</i>.</li><li>Tivnan et al. (2024). Hallucination Index: An Image Quality Metric for Generative Reconstruction Models. <i>Medical Image Computing and Computer Assisted Intervention (MICCAI)</i>.</li><li>Zhu et al. (2017). Unpaired Image-to-Image Translation Using Cycle-Consistent Adversarial Networks. <i>IEEE International Conference on Computer Vision</i>.</li><li>Isola et al. (2017). Image-to-Image Translation with Conditional Adversarial Networks. <i>IEEE Conference on Computer Vision and Pattern Recognition</i>.</li><li>Dar et al. (2019). Image Synthesis in Multi-Contrast MRI with Conditional Generative Adversarial Networks. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Dalmaz et al. (2022). ResViT: Residual Vision Transformers for Multi-Modal Medical Image Synthesis. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Özbey et al. (2023). Unsupervised Medical Image Translation with Adversarial Diffusion Models. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Korkmaz et al. (2025). I2I-Galip: Unsupervised Medical Image Translation Using Generative Adversarial CLIP. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Song et al. (2020). Score-Based Generative Modeling through Stochastic Differential Equations. <i>arXiv:2011.13456</i>.</li><li>Song et al. (2019). Generative Modeling by Estimating Gradients of the Data Distribution. <i>Advances in Neural Information Processing Systems</i>.</li><li>Chung et al. (2023). Direct Diffusion Bridge Using Data Consistency for Inverse Problems. <i>arXiv:2305.19809</i>.</li><li>Su et al. (2023). Dual Diffusion Implicit Bridges for Image-to-Image Translation. <i>arXiv:2203.08382</i>.</li><li>Kim et al. (2024). Unpaired Image-to-Image Translation via Neural Schrödinger Bridge. <i>International Conference on Learning Representations</i>.</li><li>Delbracio et al. (2023). Inversion by Direct Iteration: An Alternative to Denoising Diffusion for Image Restoration. <i>Transactions on Machine Learning Research</i>.</li><li>Gal et al. (2016). Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning. <i>International Conference on Machine Learning</i>.</li><li>Lakshminarayanan et al. (2017). Simple and Scalable Predictive Uncertainty Estimation Using Deep Ensembles. <i>Advances in Neural Information Processing Systems</i>.</li><li>Ayhan et al. (2018). Test-Time Data Augmentation for Estimation of Heteroscedastic Aleatoric Uncertainty in Deep Neural Networks. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Kendall et al. (2017). What Uncertainties Do We Need in Bayesian Deep Learning for Computer Vision? <i>Advances in Neural Information Processing Systems</i>.</li><li>Wolleb et al. (2022). Diffusion Models for Implicit Image Segmentation Ensembles. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Osuna-Vargas et al. (2024). Denoising Diffusion Models for High-Resolution Microscopy Image Restoration. <i>arXiv:2409.12078</i>.</li><li>Song et al. (2024). Self-Consistent Nested Diffusion Bridge for Accelerated MRI Reconstruction. <i>arXiv:2412.09998</i>.</li><li>Oliveras et al. (2026). MUMINS: Metadata-Conditioned Uncertainty-Aware Medical Image Next-State Synthesis. <i>arXiv:2609.17169</i>.</li><li>Jin et al. (2026). Measurement Geometry and Design for Trustworthy Generative Inverse Problems. <i>arXiv:2606.02309</i>.</li><li>Cardoso et al. (2023). RAISE – Radiology AI Safety, an End-to-End Lifecycle Approach. <i>arXiv:2311.14570</i>.</li><li>Fink et al. (2026). Artificial Intelligence Reporting and Data System (AI-RADS): A Structured Framework for Case-Level Assessment of AI Output. <i>Investigative Radiology</i>.</li><li>Chung et al. (2026). CRAFT: Clinical Reward-Aligned Finetuning for Medical Image Synthesis. <i>arXiv preprint arXiv:2605.12650</i>.</li><li>Susladkar et al. (2025). ViCTr: Vital Consistency Transfer for Pathology-Aware Image Synthesis. <i>Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)</i>.</li><li>Li et al. (2025). Denoising Diffusion Wavelet Models for Zero-shot Medical Image Translation. <i>Knowledge-Based Systems</i>.</li><li>ixi_dataset (2008). IXI Dataset.</li><li>Menze et al. (2015). The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS). <i>IEEE Transactions on Medical Imaging</i>.</li><li>Thummerer et al. (2023). SynthRAD2023 Grand Challenge Dataset: Generating Synthetic CT for Radiotherapy. <i>Medical Physics</i>.</li></ol>
+<ol class="refs"><li>Ho et al. (2020). Denoising Diffusion Probabilistic Models. <i>Advances in Neural Information Processing Systems</i>.</li><li>Nichol et al. (2021). Improved Denoising Diffusion Probabilistic Models. <i>International Conference on Machine Learning</i>.</li><li>Arslan et al. (2025). Self-Consistent Recursive Diffusion Bridge for Medical Image Translation. <i>Medical Image Analysis</i>.</li><li>Tivnan et al. (2024). Hallucination Index: An Image Quality Metric for Generative Reconstruction Models. <i>Medical Image Computing and Computer Assisted Intervention (MICCAI)</i>.</li><li>Zhu et al. (2017). Unpaired Image-to-Image Translation Using Cycle-Consistent Adversarial Networks. <i>IEEE International Conference on Computer Vision</i>.</li><li>Isola et al. (2017). Image-to-Image Translation with Conditional Adversarial Networks. <i>IEEE Conference on Computer Vision and Pattern Recognition</i>.</li><li>Dar et al. (2019). Image Synthesis in Multi-Contrast MRI with Conditional Generative Adversarial Networks. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Dalmaz et al. (2022). ResViT: Residual Vision Transformers for Multi-Modal Medical Image Synthesis. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Özbey et al. (2023). Unsupervised Medical Image Translation with Adversarial Diffusion Models. <i>IEEE Transactions on Medical Imaging</i>.</li><li>Korkmaz et al. (2025). I2I-Galip: Unsupervised Medical Image Translation Using Generative Adversarial CLIP. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Song et al. (2020). Score-Based Generative Modeling through Stochastic Differential Equations. <i>arXiv:2011.13456</i>.</li><li>Song et al. (2019). Generative Modeling by Estimating Gradients of the Data Distribution. <i>Advances in Neural Information Processing Systems</i>.</li><li>Liu et al. (2023). I2SB: Image-to-Image Schrödinger Bridge. <i>arXiv:2302.05872</i>.</li><li>Chung et al. (2023). Direct Diffusion Bridge Using Data Consistency for Inverse Problems. <i>arXiv:2305.19809</i>.</li><li>Su et al. (2023). Dual Diffusion Implicit Bridges for Image-to-Image Translation. <i>arXiv:2203.08382</i>.</li><li>Kim et al. (2024). Unpaired Image-to-Image Translation via Neural Schrödinger Bridge. <i>International Conference on Learning Representations</i>.</li><li>Delbracio et al. (2023). Inversion by Direct Iteration: An Alternative to Denoising Diffusion for Image Restoration. <i>Transactions on Machine Learning Research</i>.</li><li>Zhang et al. (2025). Diffusion Bridge Models for 3D Medical Image Translation. <i>arXiv:2504.15267</i>.</li><li>Gal et al. (2016). Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning. <i>International Conference on Machine Learning</i>.</li><li>Lakshminarayanan et al. (2017). Simple and Scalable Predictive Uncertainty Estimation Using Deep Ensembles. <i>Advances in Neural Information Processing Systems</i>.</li><li>Ayhan et al. (2018). Test-Time Data Augmentation for Estimation of Heteroscedastic Aleatoric Uncertainty in Deep Neural Networks. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Kendall et al. (2017). What Uncertainties Do We Need in Bayesian Deep Learning for Computer Vision? <i>Advances in Neural Information Processing Systems</i>.</li><li>Wolleb et al. (2022). Diffusion Models for Implicit Image Segmentation Ensembles. <i>Medical Imaging with Deep Learning (MIDL)</i>.</li><li>Osuna-Vargas et al. (2024). Denoising Diffusion Models for High-Resolution Microscopy Image Restoration. <i>arXiv:2409.12078</i>.</li><li>Song et al. (2024). Self-Consistent Nested Diffusion Bridge for Accelerated MRI Reconstruction. <i>arXiv:2412.09998</i>.</li><li>Oliveras et al. (2026). MUMINS: Metadata-Conditioned Uncertainty-Aware Medical Image Next-State Synthesis. <i>arXiv:2609.17169</i>.</li><li>Jin et al. (2026). Measurement Geometry and Design for Trustworthy Generative Inverse Problems. <i>arXiv:2606.02309</i>.</li><li>Cardoso et al. (2023). RAISE – Radiology AI Safety, an End-to-End Lifecycle Approach. <i>arXiv:2311.14570</i>.</li><li>Fink et al. (2026). Artificial Intelligence Reporting and Data System (AI-RADS): A Structured Framework for Case-Level Assessment of AI Output. <i>Investigative Radiology</i>.</li><li>Chung et al. (2026). CRAFT: Clinical Reward-Aligned Finetuning for Medical Image Synthesis. <i>arXiv preprint arXiv:2605.12650</i>.</li><li>Susladkar et al. (2025). ViCTr: Vital Consistency Transfer for Pathology-Aware Image Synthesis. <i>Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)</i>.</li><li>Li et al. (2025). Denoising Diffusion Wavelet Models for Zero-shot Medical Image Translation. <i>Knowledge-Based Systems</i>.</li><li>Imperial College London (2008). IXI Dataset.</li><li>Menze et al. (2015). The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS). <i>IEEE Transactions on Medical Imaging</i>.</li><li>Thummerer et al. (2023). SynthRAD2023 Grand Challenge Dataset: Generating Synthetic CT for Radiotherapy. <i>Medical Physics</i>.</li></ol>
 </body></html>
