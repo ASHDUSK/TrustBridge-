@@ -66,13 +66,9 @@ HTML = f"""<!DOCTYPE html>
  .fig img{{border:1px solid #ddd;border-radius:4px;}}
  .fig .cap{{font-size:12.5px;color:#555;margin-top:6px;line-height:1.5;text-align:left;}}
  .refs{{font-size:12.5px;line-height:1.6;}}
- .draft-banner{{background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;
-               padding:8px 16px;font-size:12.5px;color:#92400e;margin-bottom:24px;text-align:center;}}
  sup{{font-size:11px;}}
  ol{{padding-left:22px;}} li{{margin:4px 0;}}
 </style></head><body>
-<div class="draft-banner">DRAFT v0.4 (auto-converted from {SRC_NAME}) — internal review ·
-compile source: main.tex + references.bib + related_work.tex (Overleaf-ready)</div>
 {title_h}{author_h}{date_h}
 {html}
 <h2>References</h2>
@@ -87,7 +83,14 @@ with sync_playwright() as p:
     page = b.new_page(viewport={"width": 1000, "height": 800})
     page.goto("file:///" + SRC.replace("\\", "/"))
     page.wait_for_timeout(4000)
-    page.pdf(path=OUT, format="A4", print_background=True,
-             margin={"top": "12mm", "bottom": "12mm", "left": "10mm", "right": "10mm"})
+    try:
+        page.pdf(path=OUT, format="A4", print_background=True,
+                 margin={"top": "12mm", "bottom": "12mm", "left": "10mm", "right": "10mm"})
+    except PermissionError:
+        alt = OUT.replace(".pdf", "_new.pdf")
+        page.pdf(path=alt, format="A4", print_background=True,
+                 margin={"top": "12mm", "bottom": "12mm", "left": "10mm", "right": "10mm"})
+        print("原 PDF 被占用（可能在查看器中打开），已写出:", alt)
+        OUT = alt
     b.close()
 print("PDF ->", OUT, os.path.getsize(OUT) // 1024, "KB")

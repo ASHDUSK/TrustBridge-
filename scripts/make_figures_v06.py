@@ -69,10 +69,10 @@ def fig_overview():
 
     ax.text(50, 99, "translation model (frozen, SelfRDB)", ha="center",
             fontsize=10, color=C_GRAY)
-    ax.text(50, -8, "The two signals are already computed by the sampler; harvesting them adds no model, no training and no labels.\n"
+    ax.text(50, -16, "The two signals are already computed by the sampler; harvesting them adds no model, no training and no labels.\n"
                     "Endpoint noise and generator latents provide the ensemble diversity.",
             ha="center", fontsize=8.6, color=C_GRAY)
-    ax.set_xlim(0, 101); ax.set_ylim(-11, 101)
+    ax.set_xlim(0, 101); ax.set_ylim(-24, 101)
     fig.tight_layout()
     fig.savefig(os.path.join(OUT, "fig1_overview_v2.pdf"), bbox_inches="tight")
     fig.savefig(os.path.join(OUT, "fig1_overview_v2.png"), dpi=300, bbox_inches="tight")
