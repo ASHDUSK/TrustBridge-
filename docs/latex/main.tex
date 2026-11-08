@@ -409,14 +409,19 @@ All signals (official, T2$\to$T1) & -- & -- & -- & \multicolumn{3}{l}{$0.465$--$
 \end{table}
 
 Table~\ref{tab:uq} carries two messages. \textbf{On self-trained models},
-our fused signal wins outright: AUROC $0.900$/$0.816$ (T1$\to$T2/T2$\to$T1)
-with $+2.67$/$+1.85$\,dB sparsification gains, ahead of every equal-budget
-baseline, and a single CReF chain (zero extra cost) already reaches
-$0.880$/$0.792$---most of the value at a quarter of the budget. Fusion is
-robust but does not beat the ensemble alone by much; CReF's claim is cost,
-not accuracy. \textbf{On the official weights}, the ranking changes and the
+the fused signal achieves AUROC $0.900$/$0.816$ (T1$\to$T2/T2$\to$T1)
+with $+2.67$/$+1.85$\,dB sparsification gains. Paired subject-level bootstrap
+($B{=}5000$, 8 subjects) shows: fused vs.\ ensemble alone $\Delta$AUROC
+$+0.004$ (95\% CI $[-0.001, 0.008]$, \emph{includes zero} --- not significant
+on T1$\to$T2) and $+0.010$ (CI $[0.005, 0.015]$, significant on T2$\to$T1);
+fused vs.\ all equal-budget baselines is significant with large margins
+(TTA $-0.082$/$-0.107$, noise $-0.041$/$-0.078$, gradient). A single CReF
+chain (zero extra cost) reaches $0.880$/$0.792$ --- most of the value at a
+quarter of the budget; CReF's claim is cost, not accuracy over the ensemble.
+\textbf{On the official weights}, the ranking changes and the
 T2$\to$T1 direction collapses entirely: every dispersion signal---ours and
-all baselines'---is at chance ($0.465$--$0.505$), because that model's
+all baselines'---is \emph{systematically below chance} (fused CI
+$[0.442, 0.485]$, upper bound $<0.5$), because that model's
 residual error is dominated by fine texture that no dispersion measure can
 track. \emph{The same direction, the same protocol, opposite conclusions on
 two models}: the failure boundary is a property of the (model, direction)
