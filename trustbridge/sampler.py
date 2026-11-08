@@ -63,7 +63,9 @@ class TrustSampler:
         qc_pass: float = 75.0,
         qc_review: float = 55.0,
         pct: float = 99.0,
-        low_thresh: float = 0.6):
+        low_thresh: float = 0.6,
+        store_step_residuals: bool = False,
+        capture_steps_override: int | None = None):
         """
         Args:
             engine: BridgeEngine
@@ -72,9 +74,16 @@ class TrustSampler:
             qc_pass / qc_review: 质控阈值（Trust Score，演示默认值，未经临床标定）
             pct: 归一化分位（抗离群值）
             low_thresh: 判定"低信任区域"的信任图阈值（与 UI 叠加图一致）
+            store_step_residuals: 开启后保存捕获窗内各步的链间求和残差图
+                （self.step_residual_maps = [(t, S_t[H,W]), ...]，供 K 消融离线复算）
+            capture_steps_override: 覆盖捕获窗阈值 K₀（K 消融用；None=用默认）
         """
         self.eng = engine
         self.capture_last_steps = capture_last_steps
+        if capture_steps_override is not None:
+            self.capture_last_steps = int(capture_steps_override)
+        self.store_step_residuals = store_step_residuals
+        self.step_residual_maps = []
         self.w_residual = w_residual
         self.w_uncertainty = w_uncertainty
         self.qc_pass = qc_pass
@@ -166,6 +175,7 @@ class TrustSampler:
 
         members_out, rcrf_acc, step_curve, rec_used = [], None, [], []
         n_chunks = len(chunks)
+        self._step_acc = {}            # {t: S_t[H,W]}，跨 chunk 按 t 累加（链间求和）
 
         for ci, c0 in enumerate(chunks):
             bs = min(batch_chunk, n - c0)
@@ -202,8 +212,13 @@ class TrustSampler:
 
                 # 捕获最后若干步的残差场（越接近数据空间越有意义）
                 if t <= self.capture_last_steps and res_last is not None:
-                    rcrf_sum = res_last.sum(0) if rcrf_sum is None \
-                        else rcrf_sum + res_last.sum(0)
+                    step_sum = res_last.sum(0)             # [H,W] 链间求和
+                    rcrf_sum = step_sum.clone() if rcrf_sum is None \
+                        else rcrf_sum + step_sum
+                    if self.store_step_residuals:
+                        prev = self._step_acc.get(int(t))
+                        self._step_acc[int(t)] = step_sum.detach().cpu().numpy() \
+                            if prev is None else prev + step_sum.detach().cpu().numpy()
 
                 t_prev = max(t - skip, 0)
                 x_t = self._q_posterior(torch.full((bs,), t, device=dev, dtype=torch.long),
@@ -225,6 +240,7 @@ class TrustSampler:
 
         # ---- RCRF：捕获窗内残差均值 → 分位归一化 ----
         rcrf = (rcrf_acc / (self.capture_last_steps * n)).cpu().numpy()
+        self.rcrf_raw_map = rcrf                    # 未归一化原始图（离线复算/权重扫描用）
         rcrf_n = _pct_norm(rcrf, self.pct)
 
         # ---- 集成不确定性：成员间逐像素标准差 → 分位归一化 ----
@@ -232,6 +248,7 @@ class TrustSampler:
             unc = members.std(dim=0)[0].cpu().numpy()   # [H,W]
         else:
             unc = np.zeros_like(rcrf)
+        self.unc_raw_map = unc
         unc_n = _pct_norm(unc, self.pct) if n > 1 else unc
 
         # ---- 信任图与图像级评分 ----
@@ -248,6 +265,7 @@ class TrustSampler:
                    f"（IXI +0.37 / CT −0.63），请以像素级信任图与低信任区域占比为准。"
                    f"质控阈值 PASS≥{self.qc_pass:g} / REVIEW≥{self.qc_review:g} 为演示默认值，未经临床标定。")
 
+        self.step_residual_maps = sorted(self._step_acc.items())  # [(t, S_t)]，供 K 消融
         return TrustResult(
             pred=pred, members=members,
             rcrf_map=rcrf_n, unc_map=unc_n, trust_map=trust,

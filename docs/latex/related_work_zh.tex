@@ -47,3 +47,23 @@ CRAFT~\cite{chung2026craft} 用基础模型的临床对齐分数（CAS）按临�
 分级严重度控制的病理感知合成；DDWM~\cite{li2025ddwm} 只学习目标域分布、
 经小波分解融合域不变解剖，实现零样本翻译。三者或依赖基础模型、或需重训、
 或需架构改动；它们与采样器原生证据互补，我们在 \S6 展望中讨论。
+
+\paragraph{方法对照。}
+\begin{table}[h]
+\centering\small
+\caption{不确定性/幻觉评估方法对照（"额外前向"指相对单次基础推理的生成器前传次数）。
+TrustBridge 一行的"无额外前传"限定于当前 SelfRDB 实现——其递归结构为常规 DDPM 所无。}
+\label{tab:rw}
+\begin{tabular}{lcccc}
+\toprule
+方法 & 需要训练 & 额外模型 & 额外前向 & 输出粒度 \\
+\midrule
+MC-Dropout~\cite{gal2016mcdropout} & 需（启用 dropout 重训） & 否 & 多次 & 像素/图像 \\
+深度集成~\cite{lakshminarayanan2017ensembles} & 需（多模型） & 是 & 多次 & 像素/图像 \\
+TTA~\cite{ayhan2018tta} & 否 & 否 & 多次 & 像素/图像 \\
+扩散集成~\cite{wolleb2022diffusionensembles,osuna2024microscopy} & 否（复用模型） & 否 & 多次 & 像素/图像 \\
+Hallucination Index~\cite{tivnan2024hallucinationindex} & 视实现 & 视实现 & 多次 & 图像级 \\
+TrustBridge（本文） & 否 & 否 & \textbf{无额外}（单链） & 像素级 \\
+\bottomrule
+\end{tabular}
+\end{table}

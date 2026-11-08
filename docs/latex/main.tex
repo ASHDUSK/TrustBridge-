@@ -167,23 +167,31 @@ $x_{t-1}$. The publicly released configuration uses $T{=}10$ bridge steps and
 at most $R{=}2$ recursions, which makes per-slice inference interactive.
 
 \subsection{Convergence Residual Field (CReF)}
-Within one reverse step, the recursion produces a sequence of pixel-wise
-discrepancies
-$R^{(r)}(p)=\lvert\tilde x_0^{(r+1)}(p)-\tilde x_0^{(r)}(p)\rvert$, $p$ indexing
-pixels. SelfRDB aggregates $R^{(r)}$ to a global mean for its stopping rule and
-discards the spatial information. We retain the residual field over the final
-$K$ reverse steps (the steps closest to the data distribution),
+Each reverse step produces a pixel-wise residual; SelfRDB keeps only its
+global mean as the stopping criterion and discards the spatial information.
+We retain the \emph{last-recursion residual} of each captured reverse step:
 \begin{equation}
-  \mathrm{CReF}(p) \;=\; \frac{1}{K}\sum_{t\in\mathcal{K}}\;\sum_{r}
-      \bigl\lvert \tilde x_0^{(r+1)}(p)-\tilde x_0^{(r)}(p)\bigr\rvert ,
+  \mathrm{CReF}(p) \;=\; \frac{1}{K_0\cdot N}\sum_{i=1}^{N}\sum_{t\in\mathcal T_i}
+      \bigl\lvert \tilde x_0^{(r_t,i)}(p)-\tilde x_0^{(r_t-1,i)}(p)\bigr\rvert ,
   \label{eq:cref}
 \end{equation}
-where $\mathcal{K}$ is the capture window ($K{=}3$ here). Intuition: pixels the
-generator keeps revisiting without converging are pixels for which its learned
-prior provides insufficient evidence---prime candidates for hallucinated
-content. The signal is epistemic in the sense
-of~\cite{kendall2017uncertainties} and costs nothing: the recursion runs
-anyway. Figure~\ref{fig:overview} relates both signals to the sampling chain.
+where $\mathcal T_i=\{t:\ t\le K_0,\ t\in\text{schedule}\}$ is the set of bridge
+steps actually captured for chain $i$ ($K_0{=}3$ is the \emph{time-index
+threshold} of the capture window, a parameter distinct from the recursion cap
+$R_{\max}{=}2$), $r_t$ is the last recursion actually executed at step $t$ (on
+early stopping, the residual just before stopping), and $\tilde x_0^{(0)}\equiv 0$;
+the denominator is the fixed $K_0 N$ --- with step skipping the captured set can
+be smaller than $K_0$, and this discrepancy is kept as-is rather than absorbed
+into the denominator (the formula matches the code pixel-for-pixel, verified by
+a hand calculation on a $4\times4$ input). Intuition: pixels the generator keeps
+revisiting without converging are those where its learned prior provides
+insufficient evidence --- prime candidates for hallucinated content. We position
+it precisely as \emph{a proxy of sampler-internal convergence instability}:
+non-convergence can also stem from numerical iteration or texture sensitivity
+and is not strictly epistemic uncertainty~\cite{kendall2017uncertainties}. The
+signal requires no extra generator forwards (the recursion runs anyway; caching
+and normalization overheads are tabulated in the cost table).
+Figure~\ref{fig:overview} relates both signals to the sampling chain.
 
 \begin{figure}[t]
 \centering
@@ -211,8 +219,10 @@ ensembles~\cite{lakshminarayanan2017ensembles}, no dropout is injected and no
 separate networks are trained; the dispersion arises from the bridge sampler
 itself. Prior diffusion-ensemble work in segmentation and
 restoration~\cite{wolleb2022diffusionensembles,osuna2024microscopy} established
-that such dispersion tracks difficult regions; we pair it with a
-non-dispersion signal (CReF) that is orthogonal to sampling variance.
+that such dispersion tracks difficult regions; we pair it with a non-dispersion signal (CReF); the pixel-level Spearman
+correlation between the two is measured in \S\ref{sec:exp-uq}, and
+"complementary" is used in the measured sense rather than as a conceptual
+assertion rather than claiming orthogonality without measurement.
 
 \subsection{Trust map fusion}
 Both fields are robustly normalized (99th-percentile clipping) and fused as
@@ -253,6 +263,21 @@ body but $0.90$ on the whole image, and its whole-image sparsification gain
 ($+0.4$\,dB) by an order of magnitude. All earlier conclusions in our project
 that relied on whole-image trust metrics were re-evaluated; two were retracted (\S\ref{sec:exp-tumor},
 \S\ref{sec:exp-uq}).
+\paragraph{Metric and mask definitions (frozen as definitions v1).}
+All trust metrics are computed per slice within a body mask:
+$M=\{\text{source}>0.02\}$ on the per-slice min-max-normalized $[0,1]$ source
+image (no morphological post-processing --- a simplified protocol; threshold
+sensitivity at 0.01/0.05 in \S\ref{sec:exp-stress}). The positive class is the
+top-10\% absolute-error pixels within the body of each slice; the score is
+$1-T(p)$; AUROC is computed per slice and macro-averaged (pixel-pooled and
+subject-macro variants in \S\ref{sec:exp-uq}); AUPRC uses the same positive
+definition with the realized positive rate reported. $\Delta$PSNR@k\% =
+PSNR$_{\text{retained}(100-k)\%}$ $-$ PSNR$_{\text{full}}$ (mean-norm,
+data\_range = masked normalized GT maximum). The decile separation Sep is a
+ratio and ΔMAE its absolute-difference counterpart --- when the denominator
+approaches zero, Sep is an order-of-magnitude statement only (\S4.5). AUSE is
+the per-slice macro-averaged integral of the model-minus-oracle risk--coverage
+difference.
 \paragraph{Ethics.}
 All three datasets are public research datasets; all processing is local; no
 output is used for clinical decisions.
@@ -263,12 +288,16 @@ output is used for clinical decisions.
 Officially released IXI weights reproduce only ${\sim}15$\,dB on independently
 prepared IXI data---against the paper's 31.56\,dB (Table~\ref{tab:main}; in
 our runs the official T1$\to$T2 weights average $12.98$\,dB within the body).
-A systematic exclusion study over the plausible pre-processing degrees of
-freedom (rigid misalignment, slice $z$-shift, intensity windowing, cropping,
-orientation) traces the gap to pre-processing details the original authors do
-not publish; the companion SynDiff release is independently reported to have
-the same problem. We emphasize what this means: \emph{a reader who prepares
-the data in any reasonable way cannot reproduce the paper}, and the outputs are smooth, plausible-looking images rather than noise
+Within the independently reconstructed preprocessing pipelines systematically
+tested in this study (rigid misalignment, slice $z$-shift, intensity
+windowing, cropping, orientation), the released checkpoint did not reproduce
+the reported performance; \emph{the precise source of the discrepancy remains
+unresolved} --- candidate causes including checkpoint version, training-code
+vs.\ released-weight mismatch, and dependency differences are tabulated in the
+reproduction checklist (docs/18, with verified/unverified status and
+evidence). The companion SynDiff release is independently reported to have the
+same problem. The failure mode is invisible: the outputs are smooth,
+plausible-looking images rather than noise
 ---yet structurally wrong (within-body NCC $0.41$; see below).
 \paragraph{What the trust layer does and does not see in a collapse.}
 A natural hope is that sampler-native signals would ``know'' the base model
@@ -402,7 +431,7 @@ Figure~\ref{fig:case} shows the per-slice six-panel visualization: the spatial
 correspondence between the trust map and the true error underlies all
 quantitative claims.
 
-\subsection{Calibration}
+\subsection{Error ranking and decile separation}
 
 \begin{figure}[t]
 \centering
@@ -583,6 +612,15 @@ medical image translation settings do. we recommend body-masked
 evaluation as standard practice for uncertainty quantification in this field,
 and we publish our retraction trail (docs/18 and the corrected analysis
 scripts) as evidence that this is easy to get wrong---we did.
+\paragraph{Positioning: a two-layer safety architecture.}
+Our findings split the system into two layers: an \emph{input integrity
+monitor} (out-of-distribution detection, intensity anomalies, blur/noise/
+misalignment --- partially covered by the input-side Mahalanobis distance) and
+a \emph{sampler-native trust estimator} (pixel-wise ranking by CReF and
+ensemble divergence); beyond both, confident structural hallucination and
+image-level quality degradation must be caught by external validation and human
+review. TrustBridge is not a complete medical-imaging safety system but an
+internal-signal evaluation layer within a trustworthy workflow.
 \paragraph{Limitations.}
 (1)~The trust map flags \emph{unreliable} regions, not \emph{wrong} ones: a
 confidently synthesized hallucination is invisible to it---and the blindness

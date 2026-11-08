@@ -78,3 +78,25 @@ learning only the target-domain distribution and fusing domain-invariant
 anatomy through wavelet decomposition. All three require either foundation
 models, retraining, or architectural change; they are complementary to
 sampler-native evidence and are discussed as future work in \S6.
+
+\paragraph{Method comparison.}
+\begin{table}[h]
+\centering\small
+\caption{Uncertainty/hallucination assessment methods ("extra forwards" counts
+generator calls beyond a single base inference). The "no extra" entry of
+TrustBridge is specific to the current SelfRDB implementation --- its
+recursion structure does not exist in vanilla DDPMs.}
+\label{tab:rw}
+\begin{tabular}{lcccc}
+\toprule
+Method & Training & Extra model & Extra forwards & Granularity \\
+\midrule
+MC-Dropout~\cite{gal2016mcdropout} & yes (retrain w/ dropout) & no & multiple & pixel/image \\
+Deep ensembles~\cite{lakshminarayanan2017ensembles} & yes (multiple models) & yes & multiple & pixel/image \\
+TTA~\cite{ayhan2018tta} & no & no & multiple & pixel/image \\
+Diffusion ensembles~\cite{wolleb2022diffusionensembles,osuna2024microscopy} & no (reuse) & no & multiple & pixel/image \\
+Hallucination Index~\cite{tivnan2024hallucinationindex} & depends & depends & multiple & image-level \\
+TrustBridge (ours) & no & no & \textbf{none} (single chain) & pixel-level \\
+\bottomrule
+\end{tabular}
+\end{table}

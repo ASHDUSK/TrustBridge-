@@ -63,6 +63,7 @@ def auroc_low_vs_higherr(trust, err):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", default="T1->T2")
+    ap.add_argument("--ckpt", default=None)
     ap.add_argument("--n", type=int, default=30)
     ap.add_argument("--seed", type=int, default=2026)
     args = ap.parse_args()
@@ -77,7 +78,7 @@ def main():
     step = max(1, len(rows) // args.n)
     rows = rows[::step][: args.n]
 
-    eng = BridgeEngine(args.task)
+    eng = BridgeEngine(args.task, ckpt_path=args.ckpt)
     gate = GateV2()
     run_dir = os.path.join(ROOT, "results", f"{time.strftime('%Y-%m-%d')}_degradation_response")
     os.makedirs(run_dir, exist_ok=True)
