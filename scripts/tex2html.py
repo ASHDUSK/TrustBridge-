@@ -60,26 +60,28 @@ class Converter:
 
 
 def _cmds(c, s):
-    s = re.sub(r"\\emph\{([^{}]*)\}", r"<em>\1</em>", s)
-    s = re.sub(r"\\textbf\{([^{}]*)\}", r"<b>\1</b>", s)
-    s = re.sub(r"\\texttt\{([^{}]*)\}", r"<code>\1</code>", s)
-    s = re.sub(r"\\url\{([^{}]*)\}", r'<a href="\1">\1</a>', s)
-    s = s.replace("\\TrustMap", "trust map").replace("\\TrustScore", "Trust Score")
-    s = s.replace("\\cref", "Convergence Residual Field (CReF)")
-    s = s.replace("---", "—").replace("--", "–")
-    s = s.replace("``", "“").replace("''", "”")
-    s = s.replace("\\%", "%").replace("\\ ", " ").replace("vs\\.", "vs.")
-    s = s.replace("$\\times$", "×").replace("$\\to$", "→").replace("$\\ge$", "≥")
-    s = s.replace("\\S", "§").replace("\\,", " ").replace("~", " ")
-    s = s.replace("\\\\", "<br>")
-    s = re.sub(r"\\item\s*", "", s)
-    # 数学保护：$...$ 之外剥除残余成对花括号与裸命令名
+    # 数学保护：$...$ 区间内不做任何文本替换（交给 KaTeX 原样渲染），
+    # 命令替换只作用于非数学区间
     parts = re.split(r"(\$[^$]*\$)", s)
     for i, p in enumerate(parts):
-        if i % 2 == 0:
-            p = re.sub(r"\{\}?", "", p)
-            p = re.sub(r"\\(emph|textbf|texttt|url|large|small|centering)\b", "", p)
-            parts[i] = p
+        if i % 2 == 1:
+            continue  # math span: untouched
+        p = re.sub(r"\\emph\{([^{}]*)\}", r"<em>\1</em>", p)
+        p = re.sub(r"\\textbf\{([^{}]*)\}", r"<b>\1</b>", p)
+        p = re.sub(r"\\texttt\{([^{}]*)\}", r"<code>\1</code>", p)
+        p = re.sub(r"\\url\{([^{}]*)\}", r'<a href="\1">\1</a>', p)
+        p = p.replace("\\TrustMap", "信任图" if getattr(c, "zh", False) else "trust map")
+        p = p.replace("\\TrustScore", "Trust Score")
+        p = p.replace("\\cref", "Convergence Residual Field (CReF)")
+        p = p.replace("---", "—").replace("--", "–")
+        p = p.replace("``", "“").replace("''", "”")
+        p = p.replace("\\%", "%").replace("\\ ", " ").replace("vs\\.", "vs.")
+        p = p.replace("\\S", "§").replace("\\,", " ").replace("~", " ")
+        p = p.replace("\\\\", "<br>")
+        p = re.sub(r"\\item\s*", "", p)
+        p = re.sub(r"\{\}?", "", p)
+        p = re.sub(r"\\(emph|textbf|texttt|url|large|small|centering)\b", "", p)
+        parts[i] = p
     return "".join(parts)
 
 
@@ -93,6 +95,7 @@ def _flush(c, t):
 
 def tex_to_html(latex_dir, src="main.tex"):
     c = Converter()
+    c.zh = src.endswith("_zh.tex")
     s = _read(latex_dir + "/" + src)
     s = re.sub(r"(?m)^%.*$", "", s)
     s = re.sub(r"\\input\{(\w+)\}", lambda m: _read(f"{latex_dir}/{m.group(1)}.tex"), s)
@@ -168,7 +171,7 @@ def tex_to_html(latex_dir, src="main.tex"):
                 body.append(f"<div class='eq'>$${content.strip()}$$</div>")
             elif env == "figure":
                 img = re.search(r"\\includegraphics\[[^\]]*\]\{([^{}]*)\}", content)
-                cap = re.search(r"(?s)\\caption\{(.*?)\}\s*\\label", content)
+                cap = re.search(r"\\caption\{((?:[^{}]|\{[^{}]*\})*)\}", content)
                 lm = re.search(r"\\label\{([^{}]*)\}", content)
                 c.counters.setdefault("figure", 0)
                 c.counters["figure"] += 1

@@ -104,8 +104,9 @@ per-pixel residual field carries the spatial distribution of the model's
 \emph{inability to self-consist}. Likewise, the bridge endpoint noise and
 generator latent variables make repeated runs differ; their dispersion marks
 where the model holds no stable belief. TrustBridge systematizes both signals
-into a \TrustMap{}, an image-level \TrustScore{}, and an archivable QC report,
-with three properties that distinguish it from prior uncertainty machinery:
+into a pixel-wise \TrustMap{}, examines the feasibility of image-level
+aggregation (\S4.6) and the capability boundaries (\S4.2, \S4.8), and carries
+three properties that distinguish it from prior uncertainty machinery:
 (i) \emph{training-free}---no model change, no labels, no extra network;
 (ii) \emph{sampler-native}---signals are extracted from quantities the sampler
 already computes; and (iii) \emph{pixel-level}---unlike image-level
@@ -217,7 +218,7 @@ non-dispersion signal (CReF) that is orthogonal to sampling variance.
 
 \subsection{Trust map fusion}
 Both fields are robustly normalized (99th-percentile clipping) and fused as
-$\TrustMap(p)=1-w_1\widehat{\mathrm{CReF}}(p)-w_2\widehat{U}(p)$ with
+$T(p)=1-w_1\widehat{\mathrm{CReF}}(p)-w_2\widehat{U}(p)$ with
 $w_1{=}0.6$, $w_2{=}0.4$. The feasibility of image-level aggregation (the body-region mean) is
 analyzed as a negative result in \S\ref{sec:exp} (image-level QC operating
 points); per-slice archiving (trust maps and per-step recursion statistics)

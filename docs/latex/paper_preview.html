@@ -52,13 +52,13 @@ score of $0.90$ collapsing to $0.78$ under a within-body protocol, and retract
 our own earlier numbers that benefited from it. Second, <em>dispersion is
 not error</em>: across an equal-budget comparison with TTA and input-noise
 baselines, every dispersion-style signal—including ours—is at chance on
-T2→T1, where residual error is dominated by fine texture. We then ask
+T2$\to$T1, where residual error is dominated by fine texture. We then ask
 what <em>does</em> survive. From the self-consistent recursive diffusion-bridge
 sampler (SelfRDB) we harvest two training-free signals: the
 <em>Convergence Residual Field</em> (CReF), the per-pixel discrepancy between
 successive recursive target estimates that the original sampler computes and
 discards, and <em>stochastic-bridge ensemble uncertainty</em>. Fused into a pixel-wise trust map, they deliver, under the within-body protocol:
-AUROC $0.90$/$0.82$ (T1→T2/T2→T1, self-trained; $0.88$/$0.79$ for
+AUROC $0.90$/$0.82$ (T1$\to$T2/T2$\to$T1, self-trained; $0.88$/$0.79$ for
 a single zero-cost chain), $0.91$ on real tumor patients, and $0.95$
 <em>cross-institution</em> on never-seen subjects. A CReF-triggered routing
 scheme adds nothing on these models—single-chain CReF already dominates
@@ -108,8 +108,9 @@ per-pixel residual field carries the spatial distribution of the model's
 <em>inability to self-consist</em>. Likewise, the bridge endpoint noise and
 generator latent variables make repeated runs differ; their dispersion marks
 where the model holds no stable belief. TrustBridge systematizes both signals
-into a trust map, an image-level Trust Score, and an archivable QC report,
-with three properties that distinguish it from prior uncertainty machinery:
+into a pixel-wise trust map, examines the feasibility of image-level
+aggregation (§4.6) and the capability boundaries (§4.2, §4.8), and carries
+three properties that distinguish it from prior uncertainty machinery:
 (i) <em>training-free</em>—no model change, no labels, no extra network;
 (ii) <em>sampler-native</em>—signals are extracted from quantities the sampler
 already computes; and (iii) <em>pixel-level</em>—unlike image-level
@@ -134,16 +135,16 @@ for future uncertainty evaluations (§§4).
         metrics, quantify the whole-image inflation it corrects, and re-evaluate
         our signals against equal-budget dispersion baselines (TTA,
         input-noise): the fused signal localizes the top-error decile at AUROC
-        $0.90$/$0.82$ (self-trained T1→T2/T2→T1), beating all
+        $0.90$/$0.82$ (self-trained T1$\to$T2/T2$\to$T1), beating all
         equal-budget baselines, $0.91$ on real tumor patients, and $0.95$
         cross-institution; on the <em>official</em> weights the same protocol
-        flips the ranking and blinds T2→T1 entirely (§§4).
+        flips the ranking and blinds T2$\to$T1 entirely (§§4).
   </li><li>We report seven controlled boundary experiments (§§4)
         plus a model-level failure—the trust layer's blindness to a collapsed
         base model (§§4.2)—whose outcomes are mixed or
         negative: adaptive resampling, learnable aggregation, image-level
         regression, intensity harmonization, round-trip consistency, the
-        official-weights T2→T1 signal failure, and the semantic-proxy
+        official-weights T2$\to$T1 signal failure, and the semantic-proxy
         null result. We use them to delineate the method's
         boundary: dispersion signals track error only where error is
         spatially structured, and learning-based aggregation overfits six-subject validation sets
@@ -245,7 +246,7 @@ source end (<em>soft prior</em>). Reverse sampling starts at $x_T=y_\epsilon$;
 at every step $t$, a generator
 $G_\theta(x_t,t,y,\tilde x_0^{(r)})$ recursively refines a target estimate
 $\tilde x_0^{(r+1)}$ until the change between successive estimates falls below
-a threshold $\tau$ (SelfRDB: a $1%$ global mean), after which the
+a threshold $\tau$ (SelfRDB: a $1\%$ global mean), after which the
 self-consistent estimate $\tilde x_0^{\ast}$ drives a posterior draw of
 $x_{t-1}$. The publicly released configuration uses $T{=}10$ bridge steps and
 at most $R{=}2$ recursions, which makes per-slice inference interactive.
@@ -266,7 +267,12 @@ content. The signal is epistemic in the sense
 of<sup>[22]</sup> and costs nothing: the recursion runs
 anyway. Figure 1 relates both signals to the sampling chain.
 
-<div class='fig'><img src='figures/fig1_overview_v2.png' style='max-width:94%;'><div class='cap'><b>Fig. 1.</b> </div></div>
+<div class='fig'><img src='figures/fig1_overview_v2.png' style='max-width:94%;'><div class='cap'><b>Fig. 1.</b> Method overview. Left: the frozen SelfRDB translation model (forward
+bridge and self-consistent recursive reverse chain); right: the
+trust-quantification layer — the convergence residual field (signal 1) and
+multi-chain divergence (signal 2) are harvested from the recursion and fused
+into a pixel-wise trust map. Both signals are already computed by the sampler;
+harvesting them adds no model, no training and no labels.</div></div>
 
 
 <h3>3.3 Stochastic-bridge ensemble uncertainty</h3>
@@ -287,7 +293,7 @@ non-dispersion signal (CReF) that is orthogonal to sampling variance.
 
 <h3>3.4 Trust map fusion</h3>
 Both fields are robustly normalized (99th-percentile clipping) and fused as
-$trust map(p)=1-w_1\widehat{\mathrm{CReF}}(p)-w_2\widehat{U}(p)$ with
+$T(p)=1-w_1\widehat{\mathrm{CReF}}(p)-w_2\widehat{U}(p)$ with
 $w_1{=}0.6$, $w_2{=}0.4$. The feasibility of image-level aggregation (the body-region mean) is
 analyzed as a negative result in §§4 (image-level QC operating
 points); per-slice archiving (trust maps and per-step recursion statistics)
@@ -304,13 +310,13 @@ the official protocol (per-slice statistics, official mean-norm PSNR/SSIM).
 <b>BraTS2018</b><sup>[34]</sup>: 6 HGG patients (60 evaluated
 tumor-bearing slices) with real co-registered T2 ground truth and tumor
 segmentation; source FLAIR. <b>SynthRAD2023 pelvis</b><sup>[35]</sup>:
-10 patients, center-matched T1w→CT and T2w→CT, 80 test slices each.
+10 patients, center-matched T1w$\to$CT and T2w$\to$CT, 80 test slices each.
 <h4>Models.</h4>
-Two self-trained 128×128 bridges (T2→T1 and T1→T2, 30 epochs,
+Two self-trained 128$\times$128 bridges (T2$\to$T1 and T1$\to$T2, 30 epochs,
 single RTX 4060 Laptop 8 GB, recipe matched to the official release) and two
-self-trained pelvis bridges (T1w→CT, T2w→CT) provide the quantitative
-backbone; official SelfRDB weights provide 256×256 demonstration and
-the BraTS FLAIR→T2 evaluation.
+self-trained pelvis bridges (T1w$\to$CT, T2w$\to$CT) provide the quantitative
+backbone; official SelfRDB weights provide 256$\times$256 demonstration and
+the BraTS FLAIR$\to$T2 evaluation.
 <h4>Trust-metric protocol.</h4>
 Translation quality in Table 1 follows the official whole-image
 mean-norm protocol for comparability with the literature. <em>All trust
@@ -333,7 +339,7 @@ output is used for clinical decisions.
 <h4>The collapse.</h4>
 Officially released IXI weights reproduce only ${\sim}15$ dB on independently
 prepared IXI data—against the paper's 31.56 dB (Table 1; in
-our runs the official T1→T2 weights average $12.98$ dB within the body).
+our runs the official T1$\to$T2 weights average $12.98$ dB within the body).
 A systematic exclusion study over the plausible pre-processing degrees of
 freedom (rigid misalignment, slice $z$-shift, intensity windowing, cropping,
 orientation) traces the gap to pre-processing details the original authors do
@@ -345,10 +351,10 @@ the data in any reasonable way cannot reproduce the paper</em>, and the outputs 
 A natural hope is that sampler-native signals would “know” the base model
 is failing. We tested this directly, and the answer is the most important
 negative result in this paper. On the collapsed official model, the trust
-map does not fire—mean trust $94.2/100$, low-trust ratio $5.9%$ (lower
+map does not fire—mean trust $94.2/100$, low-trust ratio $5.9\%$ (lower
 than for our healthy self-trained model), all 20 test slices PASS. And the
 collapse is <em>not</em> a benign photometric offset: within-body NCC is
-$0.41$, SSIM $29%$, and a ground-truth-fitted linear intensity correction
+$0.41$, SSIM $29\%$, and a ground-truth-fitted linear intensity correction
 leaves PSNR at $12.3$ dB—the official model synthesizes
 <em>structurally wrong but internally self-consistent</em> anatomy. The
 sampler is confident about its wrong output, so CReF and dispersion—which
@@ -360,7 +366,11 @@ replace, external validation against ground truth; a guard layer that has
 never seen its base model fail cannot be trusted to recognize failure
 (Figure 2).
 
-<div class='fig'><img src='figures/fig_collapse_vs_healthy.png' style='max-width:94%;'><div class='cap'><b>Fig. 2.</b> </div></div>
+<div class='fig'><img src='figures/fig_collapse_vs_healthy.png' style='max-width:94%;'><div class='cap'><b>Fig. 2.</b> Image-level trust distribution: collapsed base model vs. healthy
+model (20 test slices each, seed 2026). The structurally collapsed official
+weights (12.98 dB) receive HIGHER trust (mean 94.2, all PASS) than the
+healthy self-trained model (90.1) — variance-type signals cannot see the
+failure.</div></div>
 
 
 <h3>4.3 Translation quality</h3>
@@ -368,19 +378,19 @@ never seen its base model fail cannot be trusted to recognize failure
 “Corrected” removes a global linear intensity mismatch whose parameters are
 estimated from the ground truth; it is an <em>error decomposition</em>, not a
 method metric—the raw column is the honest operating point. IXI:
-self-trained 128×128 (60 test slices each). Pelvis: self-trained,
+self-trained 128$\times$128 (60 test slices each). Pelvis: self-trained,
 80 test slices each.
-BraTS: official FLAIR→T2 weights, 60 tumor-bearing slices.</div><table><tr><th>Dataset</th><th>Direction</th><th>PSNR (dB)</th><th>SSIM (%)</th><th>NCC</th><th>Corrected PSNR</th></tr><tr><td>IXI (paper value<sup>[3]</sup>)</td><td>T2→T1</td><td>31.56</td><td>95.65</td><td>–</td><td>–</td></tr><tr><td>IXI, ours</td><td>T2→T1</td><td>19.81$\pm$1.10</td><td>71.0$\pm$6.6</td><td>0.884</td><td>31.74</td></tr><tr><td>IXI, ours</td><td>T1→T2</td><td>20.44$\pm$1.16</td><td>80.4$\pm$4.1</td><td>0.905</td><td>32.52</td></tr><tr><td>Pelvis, ours</td><td>T1w→CT</td><td>24.36$\pm$2.92</td><td>81.6$\pm$4.8</td><td>0.962</td><td>–</td></tr><tr><td>Pelvis, official</td><td>T1w→CT</td><td>21.24$\pm$2.42</td><td>64.3$\pm$6.0</td><td>0.936</td><td>–</td></tr><tr><td>Pelvis, ours</td><td>T2w→CT</td><td>23.13$\pm$0.83</td><td>74.5$\pm$2.7</td><td>0.961</td><td>–</td></tr><tr><td>Pelvis, official</td><td>T2w→CT</td><td>19.04$\pm$0.73</td><td>57.3$\pm$2.9</td><td>0.893</td><td>–</td></tr><tr><td>BraTS2018, official</td><td>FLAIR→T2</td><td>24.06$\pm$1.62</td><td>87.4</td><td>0.944</td><td>–</td></tr></table></div>
+BraTS: official FLAIR$\to$T2 weights, 60 tumor-bearing slices.</div><table><tr><th>Dataset</th><th>Direction</th><th>PSNR (dB)</th><th>SSIM (%)</th><th>NCC</th><th>Corrected PSNR</th></tr><tr><td>IXI (paper value<sup>[3]</sup>)</td><td>T2$\to$T1</td><td>31.56</td><td>95.65</td><td>–</td><td>–</td></tr><tr><td>IXI, ours</td><td>T2$\to$T1</td><td>19.81$\pm$1.10</td><td>71.0$\pm$6.6</td><td>0.884</td><td>31.74</td></tr><tr><td>IXI, ours</td><td>T1$\to$T2</td><td>20.44$\pm$1.16</td><td>80.4$\pm$4.1</td><td>0.905</td><td>32.52</td></tr><tr><td>Pelvis, ours</td><td>T1w$\to$CT</td><td>24.36$\pm$2.92</td><td>81.6$\pm$4.8</td><td>0.962</td><td>–</td></tr><tr><td>Pelvis, official</td><td>T1w$\to$CT</td><td>21.24$\pm$2.42</td><td>64.3$\pm$6.0</td><td>0.936</td><td>–</td></tr><tr><td>Pelvis, ours</td><td>T2w$\to$CT</td><td>23.13$\pm$0.83</td><td>74.5$\pm$2.7</td><td>0.961</td><td>–</td></tr><tr><td>Pelvis, official</td><td>T2w$\to$CT</td><td>19.04$\pm$0.73</td><td>57.3$\pm$2.9</td><td>0.893</td><td>–</td></tr><tr><td>BraTS2018, official</td><td>FLAIR$\to$T2</td><td>24.06$\pm$1.62</td><td>87.4</td><td>0.944</td><td>–</td></tr></table></div>
 
 Table 1 reports translation quality. On IXI, decomposing the
-error shows that the content fidelity of our 128×128 self-trained
+error shows that the content fidelity of our 128$\times$128 self-trained
 models matches the paper's setting: after removing a global linear intensity
-mismatch, PSNR reaches $31.74$/$32.52$ dB (T2→T1/T1→T2) versus the
+mismatch, PSNR reaches $31.74$/$32.52$ dB (T2$\to$T1/T1$\to$T2) versus the
 paper's $31.56$ dB, while the raw gap is attributable to that offset and the
 reduced training budget; we emphasize that the corrected column uses
 ground-truth-estimated parameters and serves only as a diagnosis. Our
 self-trained pelvis bridges beat the official weights by $+3.1$/$+4.1$ dB
-with real CT ground truth. On tumor patients, the official FLAIR→T2
+with real CT ground truth. On tumor patients, the official FLAIR$\to$T2
 weights reach $24.1$ dB (whole-image protocol; $18.3$ dB within the body)
 against real co-registered T2—a quantitative validation of bridge
 translation on <em>pathological</em> data in our pipeline.
@@ -389,25 +399,25 @@ translation on <em>pathological</em> data in our pipeline.
 
 <div class='tbl'><div class='cap'><b>Table 2.</b> Uncertainty-quality comparison under the within-body protocol
 (IXI test, 60 slices per direction, seed 2026). <b>Top:</b> self-trained
-128×128 models (the quantitative backbone); all dispersion baselines
+128$\times$128 models (the quantitative backbone); all dispersion baselines
 use the same forward-pass budget as our ensemble (40 generator calls); CReF
 (N=1) uses a single chain (10 calls, <em>zero extra cost</em>). Sep is the
 median-across-slices ratio of mean error between least- and most-trusted
-deciles; for the self-trained T1→T2 model the most-trusted decile carries
+deciles; for the self-trained T1$\to$T2 model the most-trusted decile carries
 near-zero error, so Sep is an order-of-magnitude statement rather than a
 precise value. <b>Bottom:</b> the same protocol on the official weights,
-where the signal ranking changes and T2→T1 fails entirely.
+where the signal ranking changes and T2$\to$T1 fails entirely.
 Row roles: random=control; gradient/input-noise/TTA=
-equal-budget baselines; CReF/ensemble/fused=ours.</div><table><tr><th></th><th colspan='3'>T1→T2 (self)</th><th colspan='3'>T2→T1 (self)</th></tr><tr><td>Signal</td><td>AUROC</td><td>$\Delta$PSNR@20%</td><td>Sep</td><td>AUROC</td><td>$\Delta$PSNR@20%</td><td>Sep</td></tr><tr><td>Random (control)</td><td>0.498</td><td>$\approx$0</td><td>1.0</td><td>0.501</td><td>$\approx$0</td><td>1.0</td></tr><tr><td>Gradient</td><td>0.225</td><td>$-0.45$</td><td>0.54</td><td>0.475</td><td>$-0.55$</td><td>0.51</td></tr><tr><td>Input-noise dispersion</td><td>0.861</td><td>$+1.47$</td><td>65</td><td>0.739</td><td>$+0.97$</td><td>3.0</td></tr><tr><td>TTA dispersion</td><td>0.820</td><td>$+1.33$</td><td>6.3</td><td>0.711</td><td>$+0.79$</td><td>1.9</td></tr><tr><td>CReF only (N=1, free)</td><td>0.880</td><td>$+2.28$</td><td>103</td><td>0.792</td><td>$+1.51$</td><td>2.8</td></tr><tr><td>Ensemble only (N=4)</td><td>0.897</td><td>$+2.34$</td><td>159</td><td>0.806</td><td>$+1.63$</td><td>3.8</td></tr><tr><td><b>Fused (ours)</b></td><td><b>0.900</b></td><td>$\mathbf{+2.67}$</td><td><b>182</b></td><td><b>0.816</b></td><td>$\mathbf{+1.85}$</td><td><b>3.7</b></td></tr><tr><td colspan='7'><em>Same protocol on the official weights (N=4 fused):</em></td></tr><tr><td>Fused (official)</td><td>0.783</td><td>$+0.37$</td><td>–</td><td>0.465</td><td>$+0.21$</td><td>–</td></tr><tr><td>TTA (official)</td><td><b>0.808</b></td><td>$+0.70$</td><td>–</td><td>0.482</td><td>$+0.95$</td><td>–</td></tr><tr><td>All signals (official, T2→T1)</td><td>–</td><td>–</td><td>–</td><td colspan='3'>$0.465$–$0.505$ (chance)</td></tr></table></div>
+equal-budget baselines; CReF/ensemble/fused=ours.</div><table><tr><th></th><th colspan='3'>T1$\to$T2 (self)</th><th colspan='3'>T2$\to$T1 (self)</th></tr><tr><td>Signal</td><td>AUROC</td><td>$\Delta$PSNR@20%</td><td>Sep</td><td>AUROC</td><td>$\Delta$PSNR@20%</td><td>Sep</td></tr><tr><td>Random (control)</td><td>0.498</td><td>$\approx$0</td><td>1.0</td><td>0.501</td><td>$\approx$0</td><td>1.0</td></tr><tr><td>Gradient</td><td>0.225</td><td>$-0.45$</td><td>0.54</td><td>0.475</td><td>$-0.55$</td><td>0.51</td></tr><tr><td>Input-noise dispersion</td><td>0.861</td><td>$+1.47$</td><td>65</td><td>0.739</td><td>$+0.97$</td><td>3.0</td></tr><tr><td>TTA dispersion</td><td>0.820</td><td>$+1.33$</td><td>6.3</td><td>0.711</td><td>$+0.79$</td><td>1.9</td></tr><tr><td>CReF only (N=1, free)</td><td>0.880</td><td>$+2.28$</td><td>103</td><td>0.792</td><td>$+1.51$</td><td>2.8</td></tr><tr><td>Ensemble only (N=4)</td><td>0.897</td><td>$+2.34$</td><td>159</td><td>0.806</td><td>$+1.63$</td><td>3.8</td></tr><tr><td><b>Fused (ours)</b></td><td><b>0.900</b></td><td>$\mathbf{+2.67}$</td><td><b>182</b></td><td><b>0.816</b></td><td>$\mathbf{+1.85}$</td><td><b>3.7</b></td></tr><tr><td colspan='7'><em>Same protocol on the official weights (N=4 fused):</em></td></tr><tr><td>Fused (official)</td><td>0.783</td><td>$+0.37$</td><td>–</td><td>0.465</td><td>$+0.21$</td><td>–</td></tr><tr><td>TTA (official)</td><td><b>0.808</b></td><td>$+0.70$</td><td>–</td><td>0.482</td><td>$+0.95$</td><td>–</td></tr><tr><td>All signals (official, T2$\to$T1)</td><td>–</td><td>–</td><td>–</td><td colspan='3'>$0.465$–$0.505$ (chance)</td></tr></table></div>
 
 Table 2 carries two messages. <b>On self-trained models</b>,
-our fused signal wins outright: AUROC $0.900$/$0.816$ (T1→T2/T2→T1)
+our fused signal wins outright: AUROC $0.900$/$0.816$ (T1$\to$T2/T2$\to$T1)
 with $+2.67$/$+1.85$ dB sparsification gains, ahead of every equal-budget
 baseline, and a single CReF chain (zero extra cost) already reaches
 $0.880$/$0.792$—most of the value at a quarter of the budget. Fusion is
 robust but does not beat the ensemble alone by much; CReF's claim is cost,
 not accuracy. <b>On the official weights</b>, the ranking changes and the
-T2→T1 direction collapses entirely: every dispersion signal—ours and
+T2$\to$T1 direction collapses entirely: every dispersion signal—ours and
 all baselines'—is at chance ($0.465$–$0.505$), because that model's
 residual error is dominated by fine texture that no dispersion measure can
 track. <em>The same direction, the same protocol, opposite conclusions on
@@ -425,11 +435,15 @@ quantitative claims.
 
 <h3>4.5 Calibration</h3>
 
-<div class='fig'><img src='figures/fig3_trust_example.png' style='max-width:94%;'><div class='cap'><b>Fig. 3.</b> </div></div>
+<div class='fig'><img src='figures/fig3_trust_example.png' style='max-width:94%;'><div class='cap'><b>Fig. 3.</b> Per-slice six-panel visualization (T2$\to$T1, self-trained): source,
+synthesis, CReF, ensemble divergence, trust map, and the ground-truth absolute
+error (evaluation only). The spatial correspondence between the trust map and
+the error map is the core qualitative evidence: bright = trustworthy,
+dark = suspicious. The pattern is consistent across the 60 test slices.</div></div>
 
-Within the body, the least-trusted decile carries $194\times$ (T1→T2,
+Within the body, the least-trusted decile carries $194\times$ (T1$\to$T2,
 median; the top three bins carry near-zero error, so the ratio is an
-order-of-magnitude statement), $4.0\times$ (T2→T1) and $2.1\times$
+order-of-magnitude statement), $4.0\times$ (T2$\to$T1) and $2.1\times$
 (BraTS) the mean absolute error of the most-trusted decile. These separations
 are far more modest
 than whole-image numbers suggest ($35$–$73\times$), because whole-image
@@ -437,7 +451,12 @@ deciles are dominated by the air/body contrast. The trust map is best read as
 a <em>ranking within the body</em>, not an absolute error magnitude
 (Figure 4).
 
-<div class='fig'><img src='figures/fig_body_decile.png' style='max-width:94%;'><div class='cap'><b>Fig. 4.</b> </div></div>
+<div class='fig'><img src='figures/fig_body_decile.png' style='max-width:94%;'><div class='cap'><b>Fig. 4.</b> Within-body reliability: mean absolute error per trust decile
+(60 test slices per direction, seed 2026; error bars = IQR). Both directions
+are near-monotone; the within-body separation is far smaller than the
+whole-image number (the retracted 35–73$\times$ was dominated by air/body
+contrast and is not used as a method metric). The top three bins carry
+near-zero error, where Spearman is insensitive.</div></div>
 
 
 <h3>4.6 Image-level QC operating points</h3>
@@ -445,13 +464,13 @@ The image level is where the layer is weakest, and we quantify this rather
 than hide it. Across three cohorts (IXI both directions, 60 slices each;
 BraTS, 60 tumor slices), the slice-level Trust Score (body mean, 0–100)
 correlates with slice quality (body PSNR) weakly: Pearson $r=+0.47$
-(T1→T2, self-trained), $r=+0.26$ (T2→T1, self-trained),
+(T1$\to$T2, self-trained), $r=+0.26$ (T2$\to$T1, self-trained),
 $r=-0.10$ (BraTS, official)—right-signed on the models whose signals
 work, absent on the one whose do not. The factory thresholds are likewise mis-calibrated to the
-actual score distributions: PASS≥75 flags $88%$ of pooled slices while
-REJECT$&lt;$55 fires on $3%$. An empirical reading: the lowest-scoring slices
+actual score distributions: PASS$\ge$75 flags $88\%$ of pooled slices while
+REJECT$&lt;$55 fires on $3\%$. An empirical reading: the lowest-scoring slices
 are enriched for quality problems but coverage–precision trade-offs are
-steep (at the best pooled cut, $9%$ coverage buys $29%$ precision for the
+steep (at the best pooled cut, $9\%$ coverage buys $29\%$ precision for the
 bottom-quality quartile). We therefore draw a stronger conclusion than “the thresholds need
 re-tuning”: <em>global scalar trust scores should not be used as QC
 gates for medical image translation at all</em>. Slices differ so much in
@@ -465,16 +484,16 @@ included—as a triage heuristic at best.
 Seven controlled experiments delineate what the layer can and cannot do at this
 data scale:
 (1) <em>learnable aggregation</em>: a 16-feature logistic/GBDT aggregator trained
-on the validation split improves T2→T1 marginally ($+0.010$ AUROC) but
-regresses T1→T2 ($-0.03$), overfitting the 6-subject validation set;
+on the validation split improves T2$\to$T1 marginally ($+0.010$ AUROC) but
+regresses T1$\to$T2 ($-0.03$), overfitting the 6-subject validation set;
 (2) <em>image-level regression</em>: a 16-feature ridge model predicts image
 PSNR worse than the baseline trust mean ($0.32$–$0.33$ vs. $0.38$–$0.40$);
 (3) <em>adaptive resampling</em> and (4) <em>round-trip consistency
 signal</em>: no quality gain ($-0.016$ dB and AUROC $0.503$ respectively) at
-$35$–$75%$ extra cost—consistent with ensemble-mean saturation;
+$35$–$75\%$ extra cost—consistent with ensemble-mean saturation;
 (5) <em>intensity harmonization</em>: post-hoc quantile/affine matching degrades
 raw PSNR ($-0.8$/$-0.9$ dB) because the per-slice intensity offset is not
-predictable without ground truth; and (6) <em>T2→T1 signal failure on the official weights</em>
+predictable without ground truth; and (6) \emphT2$\to$T1 signal failure on the official weights}
 (§§4.4): all dispersion signals at chance when that model's
 residual error is texture-dominated—while the same direction works on our
 self-trained model ($0.816$), isolating the failure to the model, not the task; and (7) <em>semantic-proxy signals do not complement dispersion</em>:
@@ -486,13 +505,13 @@ agreement with the <em>source</em> is a weaker error surrogate than
 sampler-native dispersion. These results are reported in full as negative findings:
 at 40 subjects, the pixel-wise trust map is the only reliable product
 form; reopening learnable aggregation would require a substantially larger
-validation set (plausibly ≥20 subjects, untested).
+validation set (plausibly $\ge$20 subjects, untested).
 
 <h3>4.8 Tumor-region analysis</h3>
 
-On the BraTS cohort (official FLAIR→T2 weights, 60 tumor-bearing slices,
+On the BraTS cohort (official FLAIR$\to$T2 weights, 60 tumor-bearing slices,
 within-body protocol):
-(i) pixel error inside the tumor is $1.60\times$ the error outside ($90%$ of
+(i) pixel error inside the tumor is $1.60\times$ the error outside ($90\%$ of
 slices), confirming that synthesis risk concentrates at the lesion;
 (ii) the trust map localizes the top-error decile with AUROC
 $0.911\pm0.037$ and a $+3.12$ dB sparsification gain at 20%—trust
@@ -512,7 +531,13 @@ a pathologically wrong synthesis. Any UQ layer for clinical use must be
 audited against pathology annotations, not only against error maps
 (Figure 5).
 
-<div class='fig'><img src='figures/fig6_tumor.png' style='max-width:94%;'><div class='cap'><b>Fig. 5.</b> </div></div>
+<div class='fig'><img src='figures/fig6_tumor.png' style='max-width:94%;'><div class='cap'><b>Fig. 5.</b> Lesion blind spot (corrected, BraTS2018, 60 tumor-bearing slices,
+within-body protocol). (a) mean trust inside/outside tumor; (b) mean absolute
+error — 1.60$\times$ inside; (c) within-body AUROC of low-trust-indicates-tumor
+— mean 0.51, chance level (red line); (d–f) case slices: FLAIR (tumor
+bright), trust map + tumor contour (tumor is HIGH-trust), translation. The
+model confidently interpolates the homogeneous bright region into wrong
+content (bias-type hallucination), invisible to variance-type signals.</div></div>
 
 
 <h3>4.9 Stress tests: input degradation and cross-institution transfer</h3>
@@ -521,7 +546,7 @@ audited against pathology annotations, not only against error maps
 We degrade the input along three axes—Gaussian blur ($\sigma\in\{0.5,1,2\}$),
 Gaussian noise ($\sigma\in\{0.01,0.03,0.06,0.1\}$), and horizontal misalignment
 (2–8 px)—over 30 IXI test slices per dose. Translation quality degrades
-mildly (body PSNR $12.9\to11.8$ dB at the worst dose; official T1→T2
+mildly (body PSNR $12.9\to11.8$ dB at the worst dose; official T1$\to$T2
 weights; trust values in this section are body means, a different aggregation
 from the whole-image score of §§4.2). The response of our
 trust machinery is asymmetric and instructive: the input-side Mahalanobis distance (the open-sourced input-side defense
@@ -538,7 +563,7 @@ this in §§5).
 <h4>Cross-institution transfer.</h4>
 The strongest external objection to sampler-native trust evidence is that it
 may be locked to the training cohort. We therefore evaluate the identical
-pipeline (official FLAIR→T2 weights, identical protocol, never-seen
+pipeline (official FLAIR$\to$T2 weights, identical protocol, never-seen
 subjects) on two held-out sets from BraTS2018 raw data: six patients from the
 same collection as our reference cohort (patient-level generalization) and six
 <code>CBICA</code> validation subjects prepared by a different institution
@@ -562,7 +587,7 @@ checklist through the discussion below.
 Our self-trained pelvis bridges beat the official weights on PSNR by
 $+3.1$/$+4.1$ dB, yet the signal ranking changes across models (top/bottom
 panels of Table 2); the sharpest example is the official
-T2→T1 weights, whose trust signals carry no information at all. A model
+T2$\to$T1 weights, whose trust signals carry no information at all. A model
 can be accurate and still produce uninformative uncertainty, when its
 residual error lacks the spatial structure that dispersion measures respond
 to. Uncertainty signals must be validated per (model, direction) pair before
@@ -580,7 +605,7 @@ confidently synthesized hallucination is invisible to it—and the blindness
 extends to the model level: a collapsed base model that is confidently wrong
 receives PASS ($94/100$ mean trust, §§4.2).
 (2) Learnable aggregation overfits 6-subject validation sets; reopening it
-would require a substantially larger validation set (plausibly ≥20
+would require a substantially larger validation set (plausibly $\ge$20
 subjects, untested).
 (3) Input-level errors (a wrong source modality) are outside the perception
 range of sampler-native signals; they require a dedicated input-side defense
@@ -599,7 +624,7 @@ discarded internals of a state-of-the-art diffusion-bridge sampler, and subjecte
 planned: body-masked metrics, equal-budget dispersion baselines, and
 per-cohort operating-point analysis. What survives is a clear, bounded
 picture: on models whose errors are spatially structured (self-trained
-T1→T2/T2→T1; official weights on tumor patients), the training-free signals localize unreliable
+T1$\to$T2/T2$\to$T1; official weights on tumor patients), the training-free signals localize unreliable
 regions well (AUROC $0.82$–$0.95$) and CReF supplies most of that value at
 zero cost; on texture-dominated error the signals—and every baseline we
 tried—are blind. The broader messages are methodological: generative
@@ -607,7 +632,7 @@ samplers compute more evidence than they use, and harvesting it converts a
 synthesis engine into a trust-assessable system; but uncertainty claims in
 image translation must be evaluated within the body and against cheap
 baselines, or they will be overstated. Future work will test whether learnable aggregation can be reopened at
-larger subject scale, extend the analysis to 256×256 models, and
+larger subject scale, extend the analysis to 256$\times$256 models, and
 integrate radiologist feedback.
 
 <h4>Acknowledgments.</h4>
