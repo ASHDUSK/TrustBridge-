@@ -53,7 +53,7 @@ sampler (SelfRDB) we harvest two training-free signals: the
 successive recursive target estimates that the original sampler computes and
 discards, and \emph{stochastic-bridge ensemble uncertainty}. Fused into a pixel-wise trust map, they deliver, under the within-body protocol:
 AUROC $0.90$/$0.82$ (T1$\to$T2/T2$\to$T1, self-trained; $0.88$/$0.79$ for
-a single zero-cost chain), $0.91$ on real tumor patients, and $0.95$
+a single single-chain (no extra forward)), $0.91$ on real tumor patients, and $0.95$
 \emph{cross-institution} on never-seen subjects. A CReF-triggered routing
 scheme adds nothing on these models---single-chain CReF already dominates
 full-budget TTA---further confirming that which signal wins is
@@ -516,8 +516,8 @@ $0.42$--$0.67$ where dispersion reaches $0.82$--$0.90$, and their
 combination with dispersion does not improve it---structural
 agreement with the \emph{source} is a weaker error surrogate than
 sampler-native dispersion. These results are reported in full as negative findings:
-at 40 subjects, the pixel-wise \TrustMap{} is the only reliable product
-form; reopening learnable aggregation would require a substantially larger
+at 40 subjects, the pixel-wise \TrustMap{} is the output form with the most
+stable evidence in our experiments; its clinical utility remains unverified; reopening learnable aggregation would require a substantially larger
 validation set (plausibly $\ge$20 subjects, untested).
 
 \subsection{Tumor-region analysis}
