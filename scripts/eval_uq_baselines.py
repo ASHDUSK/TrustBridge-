@@ -78,7 +78,7 @@ def decile_separation(trust, err, mask):
 def eval_predictor(trust, gt, pred, err, mask):
     rho = float(spearmanr(trust[mask], err[mask]).statistic)
     return {"spearman": round(rho, 4),
-            "auroc": round(auroc_low_vs_higherr(trust, err), 4),
+            "auroc": round(auroc_low_vs_higherr(trust[mask], err[mask]), 4),
             "dpsnr10": round(sparsify_gain(gt, pred, trust, mask, 10), 3),
             "dpsnr20": round(sparsify_gain(gt, pred, trust, mask, 20), 3),
             "dpsnr30": round(sparsify_gain(gt, pred, trust, mask, 30), 3),
@@ -94,6 +94,7 @@ TTA_VARIANTS = [("id", lambda a: a, lambda a: a),
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", default="T1->T2")
+    ap.add_argument("--ckpt", default=None)
     ap.add_argument("--n", type=int, default=60)
     ap.add_argument("--seed", type=int, default=2026)
     args = ap.parse_args()
@@ -104,7 +105,7 @@ def main():
     step = max(1, len(rows) // args.n)
     rows = rows[::step][: args.n]
 
-    eng = BridgeEngine(args.task)   # 默认自训练 ckpt（与消融一致）
+    eng = BridgeEngine(args.task, ckpt_path=args.ckpt)  # 显式传自训 ckpt，避免默认官方权重
     _, src_mod, tgt_mod, _ = TASKS[args.task]
     run_dir = os.path.join(ROOT, "results",
                            f"{time.strftime('%Y-%m-%d')}_uq_baselines_{args.task.replace('->', '_')}")

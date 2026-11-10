@@ -104,7 +104,7 @@ def main():
                "body_psnr": float(10 * np.log10(
                    max(gn.max(), 1e-9) ** 2 / max(np.mean((gn - pn) ** 2), 1e-12)))}
         for K in K_GRID:
-            keep_ts = set(sorted(ts, reverse=True)[:K])
+            keep_ts = set(sorted(ts)[:K])   # 取最小 K 个 t（数据端，与论文定义一致）
             sel = np.isin(ts, list(keep_ts))
             rcrf_k = (steps[sel].sum(axis=0) / (K * 1.0)).astype(np.float32)
             # 链维已并入 step_sums（链间求和），分母 K·N：N=4

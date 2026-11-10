@@ -24,6 +24,7 @@ from trustbridge.metrics import mean_norm  # noqa: E402
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", default="T1->T2")
+    ap.add_argument("--ckpt", default=None)
     ap.add_argument("--n", type=int, default=60)
     ap.add_argument("--seed", type=int, default=2026)
     args = ap.parse_args()
@@ -34,7 +35,7 @@ def main():
     step = max(1, len(rows) // args.n)
     rows = rows[::step][: args.n]
 
-    eng = BridgeEngine(args.task)
+    eng = BridgeEngine(args.task, ckpt_path=args.ckpt)  # 显式自训 ckpt
     _, src_mod, _, _ = TASKS[args.task]
     run_dir = os.path.join(ROOT, "results",
                            f"{time.strftime('%Y-%m-%d')}_slice_scores_{args.task.replace('->', '_')}")

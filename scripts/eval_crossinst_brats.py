@@ -111,7 +111,9 @@ def main():
                     continue
                 out = translate_single(eng, flair, n_ensemble=4, step_skip=1, seed=args.seed)
                 res, pred = out["result"], out["pred01"]
-                trust = res.trust_map
+                R_n = _pct_norm(res.rcrf_raw_map)
+                U_n = _pct_norm(res.unc_raw_map)
+                trust = np.clip(1 - 0.6 * R_n - 0.4 * U_n, 0, 1)
                 if trust.shape != flair.shape:
                     S = trust.shape[0]; H, W = flair.shape
                     pt, pl = (S - H) // 2, (S - W) // 2
