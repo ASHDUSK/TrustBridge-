@@ -19,7 +19,20 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from trustbridge.engine import BridgeEngine  # noqa: E402
-from trustbridge.pipeline import translate_single  # noqa: E402
+from trustbridge.pipeline import translate_single, get_sampler  # noqa: E402
+from trustbridge.sampler import _pct_norm  # noqa: E402
+
+
+
+
+def align_map(m, ref):
+    """信任图对齐到源尺寸：小于模型尺寸则中心裁剪，大于则双线性放大（同 pipeline）。"""
+    S = m.shape[0]; H, W = ref.shape
+    if H <= S and W <= S:
+        pt, pl = (S - H) // 2, (S - W) // 2
+        return np.ascontiguousarray(m[pt:pt + H, pl:pl + W])
+    from skimage.transform import resize
+    return resize(m, (H, W), order=1, preserve_range=True).astype(np.float32)
 
 
 def auroc(score, pos):
@@ -50,7 +63,7 @@ def main():
 
     eng = BridgeEngine("BRATS_FLAIR->T2",
                        ckpt_path=os.path.join(ROOT, "checkpoints", "brats_flair_t2.ckpt"))
-    run_dir = os.path.join(ROOT, "results", "2026-10-31_tumor_trust_corrected")
+    run_dir = os.path.join(ROOT, "results", f"{time.strftime('%Y-%m-%d')}_tumor_trust_corrected")
     os.makedirs(run_dir, exist_ok=True)
 
     per = []
@@ -63,12 +76,12 @@ def main():
 
         out = translate_single(eng, flair, n_ensemble=4, step_skip=1, seed=args.seed)
         res = out["result"]; pred = out["pred01"]
-        trust = res.trust_map
-        if trust.shape != flair.shape:
-            S = trust.shape[0]; H, W = flair.shape
-            pt, pl = (S - H) // 2, (S - W) // 2
-            crop = lambda m: np.ascontiguousarray(m[pt:pt + H, pl:pl + W])
-            trust, pred = crop(trust), crop(pred)
+        # 论文口径融合（CReF 0.6 / 集成 0.4）：原始图单次 p99 归一化
+        smp = get_sampler(eng)
+        R_n = _pct_norm(smp.rcrf_raw_map)
+        U_n = _pct_norm(smp.unc_raw_map)
+        trust = np.clip(1 - 0.6 * R_n - 0.4 * U_n, 0, 1)
+        trust = align_map(trust, flair)
         err = np.abs(t2gt - pred)
 
         t_in = float(trust[seg].mean())

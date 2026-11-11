@@ -268,7 +268,9 @@ def ref_html(latex_dir, cite_order):
 
 
 def tabular_to_html(c, content):
-    m = re.search(r"(?s)\\begin\{tabular\}\{[^{}]*\}(.*?)\\end\{tabular\}", content)
+    # 列规范可含一层嵌套花括号（如 p{0.24\linewidth}p{0.68\linewidth}）
+    m = re.search(r"(?s)\\begin\{tabular\}\{(?:[^{}]|\{[^{}]*\})*\}(.*?)\\end\{tabular\}", content)
+    assert m, "tabular parse failed"
     rows = []
     for line in re.split(r"\\\\", m.group(1)):
         line = re.sub(r"\\(toprule|midrule|bottomrule|hline|cmidrule\(?lr?\)?\{?[^{}]*\}?)", "",

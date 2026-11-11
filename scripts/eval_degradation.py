@@ -25,7 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from trustbridge.engine import BridgeEngine  # noqa: E402
-from trustbridge.pipeline import translate_single  # noqa: E402
+from trustbridge.pipeline import translate_single, get_sampler  # noqa: E402
 from trustbridge.metrics import mean_norm  # noqa: E402
 from trustbridge.sampler import _pct_norm  # noqa: E402
 from trustbridge.gate_v2 import GateV2  # noqa: E402
@@ -47,6 +47,16 @@ def degrade(img, kind, dose):
         return out
     raise ValueError(kind)
 
+
+
+def align_map(m, ref):
+    """信任图对齐到源尺寸：小于模型尺寸则中心裁剪，大于则双线性放大（同 pipeline）。"""
+    S = m.shape[0]; H, W = ref.shape
+    if H <= S and W <= S:
+        pt, pl = (S - H) // 2, (S - W) // 2
+        return np.ascontiguousarray(m[pt:pt + H, pl:pl + W])
+    from skimage.transform import resize
+    return resize(m, (H, W), order=1, preserve_range=True).astype(np.float32)
 
 def auroc_low_vs_higherr(trust, err):
     hi = err > np.percentile(err, 90)
@@ -94,10 +104,15 @@ def main():
             x = degrade(src, kind, dose)
             out = translate_single(eng, x, n_ensemble=4, step_skip=1, seed=args.seed)
             res, pred = out["result"], out["pred01"]
+            # 论文口径融合（CReF 0.6 / 集成 0.4），从原始图重算，不依赖 sampler 默认
+            smp = get_sampler(eng)
+            R_n = _pct_norm(smp.rcrf_raw_map)
+            U_n = _pct_norm(smp.unc_raw_map)
+            tr = np.clip(1 - 0.6 * R_n - 0.4 * U_n, 0, 1)
+            tr = align_map(tr, x)
             err = np.abs(gt - pred)
             g, p = mean_norm(gt), mean_norm(pred)
             psnr = float(peak_signal_noise_ratio(g[mask], p[mask], data_range=g[mask].max()))
-            tr = res.trust_map
             # 输入门控 maha（对退化后的输入）
             exp_cls = "brain_T1" if src_mod_t1(args.task) else "brain_T2"
             gv = gate.classify(x, exp_cls)
@@ -105,7 +120,7 @@ def main():
                 "subject": r["subject"], "z": r["z"], "kind": kind, "dose": dose,
                 "body_psnr": round(psnr, 2),
                 "trust_mean": round(float(tr[mask].mean()), 4),
-                "auroc": round(auroc_low_vs_higherr(tr, err), 4),
+                "auroc": round(auroc_low_vs_higherr(tr[mask], err[mask]), 4),
                 "decile_sep": round(float(
                     err[mask][tr[mask] <= np.percentile(tr[mask], 10)].mean() /
                     max(err[mask][tr[mask] >= np.percentile(tr[mask], 90)].mean(), 1e-9)), 2),

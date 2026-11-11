@@ -83,24 +83,24 @@ def fig_overview():
 # ---------------- fig3 崩塌 vs 健康 ----------------
 def fig_collapse():
     rows = list(csv.DictReader(open(os.path.join(
-        ROOT, "results", "2026-11-04_collapse_alarm", "per_case.csv"), encoding="utf-8")))
+        ROOT, "results", "2026-11-12_collapse_alarm", "per_case.csv"), encoding="utf-8")))
     official = np.array([float(r["trust_score"]) for r in rows if r["model"] == "official_15db"])
     self_m = np.array([float(r["trust_score"]) for r in rows if r["model"] == "self_20db"])
 
     fig, ax = plt.subplots(figsize=(6.2, 3.6))
     bins = np.linspace(55, 100, 24)
     ax.hist(official, bins=bins, alpha=0.75, color=C_ORANGE,
-            label=f"official weights (collapsed, 12.98 dB)\nmean trust {official.mean():.1f}, all PASS",
+            label=f"official weights (collapsed, 12.98 dB)\nmean trust {official.mean():.1f} (0 PASS / 18 REVIEW / 2 REJECT)",
             edgecolor="white")
     ax.hist(self_m, bins=bins, alpha=0.75, color=C_BLUE,
-            label=f"self-trained (healthy, 18.24 dB)\nmean trust {self_m.mean():.1f}",
+            label=f"self-trained (healthy, 18.24 dB)\nmean trust {self_m.mean():.1f} (all PASS)",
             edgecolor="white")
     ax.axvline(official.mean(), color=C_ORANGE, lw=1.4, linestyle="--")
     ax.axvline(self_m.mean(), color=C_BLUE, lw=1.4, linestyle="--")
     ax.set_xlabel("image-level Trust Score (body mean, 0-100)")
     ax.set_ylabel("# test slices")
-    ax.set_title("A collapsed base model is MORE confident than a healthy one:\n"
-                 "variance-type trust signals cannot see the failure (20 test slices each)")
+    ax.set_title("Body-masked trust separates a collapsed model only partially:\n"
+                 "directionally right (62 vs 82), operationally insufficient (REVIEW, never REJECT)")
     ax.legend(fontsize=8, loc="upper left")
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
@@ -112,7 +112,7 @@ def fig_collapse():
 
 # ---------------- fig4 体区十分箱 ----------------
 def fig_body_decile():
-    p = os.path.join(ROOT, "results", "2026-11-08_body_decile", "per_case.csv")
+    p = os.path.join(ROOT, "results", "2026-11-12_body_decile", "per_case.csv")
     if not os.path.exists(p):
         p = os.path.join(ROOT, "results", "2026-11-05_body_decile", "per_case.csv")
     if not os.path.exists(p):

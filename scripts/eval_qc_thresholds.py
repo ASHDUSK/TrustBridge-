@@ -35,9 +35,8 @@ def load(task_dirs):
 
 
 def main():
-    rows = load(["2026-11-03_uq_baselines_T1_T2", "2026-11-03_uq_baselines_T2_T1",
-                 "2026-11-03_tumor_sparsify_body",
-                 "2026-11-03_slice_scores_T1_T2", "2026-11-03_slice_scores_T2_T1"])
+    rows = load(["2026-11-12_slice_scores_T1_T2", "2026-11-12_slice_scores_T2_T1",
+                 "2026-11-12_tumor_sparsify_body"])
     if not rows:
         print("找不到逐片数据（先跑 eval_uq_baselines.py / eval_tumor_sparsify.py）")
         return

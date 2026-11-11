@@ -248,7 +248,7 @@ def fig5():
 def fig6():
     """病灶分析（修正版）：体掩码内 AUROC≈随机（信任盲区）+ 误差集中 + 自信幻觉案例。"""
     import csv as _csv
-    run = os.path.join(ROOT, "results", "2026-10-31_tumor_trust_corrected")
+    run = os.path.join(ROOT, "results", "2026-11-12_tumor_trust_corrected")
     rows = list(_csv.DictReader(open(os.path.join(run, "per_slice.csv"), encoding="utf-8")))
     t_in = np.array([float(r["t_in"]) for r in rows])
     t_out = np.array([float(r["t_out"]) for r in rows])

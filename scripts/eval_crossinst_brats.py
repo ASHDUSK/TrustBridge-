@@ -31,13 +31,24 @@ sys.path.insert(0, ROOT)
 import nibabel as nib  # noqa: E402
 
 from trustbridge.engine import BridgeEngine  # noqa: E402
-from trustbridge.pipeline import translate_single  # noqa: E402
+from trustbridge.pipeline import translate_single, get_sampler  # noqa: E402
+from trustbridge.sampler import _pct_norm  # noqa: E402
 from trustbridge.metrics import mean_norm  # noqa: E402
 
 USED_PATIENTS = {"Brats18_2013_10_1", "Brats18_2013_11_1", "Brats18_2013_12_1",
                  "Brats18_2013_13_1", "Brats18_2013_14_1", "Brats18_2013_17_1"}
 SLICE_RANGE = range(27, 127)
 
+
+
+def align_map(m, ref):
+    """信任图对齐到源尺寸：小于模型尺寸则中心裁剪，大于则双线性放大（同 pipeline）。"""
+    S = m.shape[0]; H, W = ref.shape
+    if H <= S and W <= S:
+        pt, pl = (S - H) // 2, (S - W) // 2
+        return np.ascontiguousarray(m[pt:pt + H, pl:pl + W])
+    from skimage.transform import resize
+    return resize(m, (H, W), order=1, preserve_range=True).astype(np.float32)
 
 def auroc_low_vs_higherr(trust, err):
     hi = err > np.percentile(err, 90)
@@ -111,20 +122,18 @@ def main():
                     continue
                 out = translate_single(eng, flair, n_ensemble=4, step_skip=1, seed=args.seed)
                 res, pred = out["result"], out["pred01"]
-                R_n = _pct_norm(res.rcrf_raw_map)
-                U_n = _pct_norm(res.unc_raw_map)
+                # 论文口径融合（CReF 0.6 / 集成 0.4）：原始图在 sampler 实例上
+                smp = get_sampler(eng)
+                R_n = _pct_norm(smp.rcrf_raw_map)
+                U_n = _pct_norm(smp.unc_raw_map)
                 trust = np.clip(1 - 0.6 * R_n - 0.4 * U_n, 0, 1)
-                if trust.shape != flair.shape:
-                    S = trust.shape[0]; H, W = flair.shape
-                    pt, pl = (S - H) // 2, (S - W) // 2
-                    crop = lambda m: np.ascontiguousarray(m[pt:pt + H, pl:pl + W])
-                    trust, pred = crop(trust), crop(pred)
+                trust = align_map(trust, flair)
                 err = np.abs(t2gt - pred)
                 g, pp = mean_norm(t2gt), mean_norm(pred)
                 psnr = float(peak_signal_noise_ratio(g[body], pp[body], data_range=g[body].max()))
                 tr_b, er_b = trust[body], err[body]
                 per.append({"set": set_name, "patient": p, "z": z,
-                            "auroc": round(auroc_low_vs_higherr(trust, err), 4),
+                            "auroc": round(auroc_low_vs_higherr(tr_b, er_b), 4),
                             "spearman": round(float(spearmanr(tr_b, er_b).statistic), 4),
                             "dpsnr20": 0.0, "decile_sep": round(float(
                                 er_b[tr_b <= np.percentile(tr_b, 10)].mean() /

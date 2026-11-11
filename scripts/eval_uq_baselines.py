@@ -29,11 +29,22 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from trustbridge.engine import BridgeEngine, TASKS  # noqa: E402
-from trustbridge.pipeline import translate_single  # noqa: E402
+from trustbridge.pipeline import translate_single, get_sampler  # noqa: E402
 from trustbridge.metrics import mean_norm  # noqa: E402
 from trustbridge.sampler import _pct_norm  # noqa: E402
 
 NOISE_SIGMA = 0.02
+
+
+
+def align_map(m, ref):
+    """信任图对齐到源尺寸：小于模型尺寸则中心裁剪，大于则双线性放大（同 pipeline）。"""
+    S = m.shape[0]; H, W = ref.shape
+    if H <= S and W <= S:
+        pt, pl = (S - H) // 2, (S - W) // 2
+        return np.ascontiguousarray(m[pt:pt + H, pl:pl + W])
+    from skimage.transform import resize
+    return resize(m, (H, W), order=1, preserve_range=True).astype(np.float32)
 
 
 def auroc_low_vs_higherr(trust: np.ndarray, err: np.ndarray) -> float:
@@ -107,8 +118,9 @@ def main():
 
     eng = BridgeEngine(args.task, ckpt_path=args.ckpt)  # 显式传自训 ckpt，避免默认官方权重
     _, src_mod, tgt_mod, _ = TASKS[args.task]
+    ckpt_tag = "self" if args.ckpt else "official"
     run_dir = os.path.join(ROOT, "results",
-                           f"{time.strftime('%Y-%m-%d')}_uq_baselines_{args.task.replace('->', '_')}")
+                           f"{time.strftime('%Y-%m-%d')}_uq_baselines_{args.task.replace('->', '_')}_{ckpt_tag}")
     os.makedirs(run_dir, exist_ok=True)
 
     per, agg = [], {}
@@ -137,7 +149,10 @@ def main():
         res, pred = out["result"], out["pred01"]
         err = np.abs(gt - pred); err_needed = err
         fwd = sum(sum(c) for c in res.recursions_used)
-        R, U = _pct_norm(res.rcrf_map), _pct_norm(res.unc_map)
+        # 论文口径：原始图单次 p99 归一化（与其余评估脚本一致，勿对已归一化图二次归一化）
+        smp = get_sampler(eng)
+        R = align_map(_pct_norm(smp.rcrf_raw_map), src)
+        U = align_map(_pct_norm(smp.unc_raw_map), src)
         trust = 1 - (0.6 * R + 0.4 * U)
         record("ours_fused", r, pred, trust, err, mask, gt, fwd, res.elapsed_s,
                masked_psnr(gt, pred, mask))
@@ -148,7 +163,8 @@ def main():
         out1 = translate_single(eng, src, n_ensemble=1, step_skip=1, seed=args.seed)
         res1, pred1 = out1["result"], out1["pred01"]
         err1 = np.abs(gt - pred1)
-        record("ours_rcrf_n1", r, pred1, 1 - _pct_norm(res1.rcrf_map), err1, mask,
+        smp1 = get_sampler(eng)
+        record("ours_rcrf_n1", r, pred1, align_map(1 - _pct_norm(smp1.rcrf_raw_map), src), err1, mask,
                gt, sum(sum(c) for c in res1.recursions_used), res1.elapsed_s,
                masked_psnr(gt, pred1, mask))
 

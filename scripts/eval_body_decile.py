@@ -14,9 +14,19 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from trustbridge.engine import BridgeEngine, TASKS  # noqa: E402
-from trustbridge.pipeline import translate_single  # noqa: E402
+from trustbridge.pipeline import translate_single, get_sampler  # noqa: E402
 from trustbridge.sampler import _pct_norm  # noqa: E402
 
+
+
+def align_map(m, ref):
+    """信任图对齐到源尺寸：小于模型尺寸则中心裁剪，大于则双线性放大（同 pipeline）。"""
+    S = m.shape[0]; H, W = ref.shape
+    if H <= S and W <= S:
+        pt, pl = (S - H) // 2, (S - W) // 2
+        return np.ascontiguousarray(m[pt:pt + H, pl:pl + W])
+    from skimage.transform import resize
+    return resize(m, (H, W), order=1, preserve_range=True).astype(np.float32)
 
 def main(n=60, seed=2026):
     man = list(csv.DictReader(open(os.path.join(ROOT, "data", "ixi_slices",
@@ -38,12 +48,12 @@ def main(n=60, seed=2026):
             mask = src > 0.02
             o = translate_single(eng, src, n_ensemble=4, step_skip=1, seed=seed)
             res, pred = o["result"], o["pred01"]
-            tr = res.trust_map
-            if tr.shape != src.shape:
-                S = tr.shape[0]; H, W = src.shape
-                pt, pl = (S - H) // 2, (S - W) // 2
-                tr = np.ascontiguousarray(tr[pt:pt + H, pl:pl + W])
-                pred = np.ascontiguousarray(pred[pt:pt + H, pl:pl + W])
+            # 论文口径融合（CReF 0.6 / 集成 0.4），从原始图重算，不依赖 sampler 默认
+            smp = get_sampler(eng)
+            R_n = _pct_norm(smp.rcrf_raw_map)
+            U_n = _pct_norm(smp.unc_raw_map)
+            tr = np.clip(1 - 0.6 * R_n - 0.4 * U_n, 0, 1)
+            tr = align_map(tr, src)
             err = np.abs(gt - pred)
             tr_m, er_m = tr[mask], err[mask]
             order = np.argsort(tr_m)              # 低信任在前

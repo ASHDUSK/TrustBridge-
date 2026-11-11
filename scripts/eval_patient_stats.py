@@ -2,12 +2,12 @@
 """Gate 3 · 患者级配对 bootstrap 统计（硬性标准 C）。
 
 数据源（全部已有 CSV，纯离线）：
-  1) results/2026-11-04_uq_baselines_{T1_T2,T2_T1}/per_slice.csv
+  1) results/<date>_uq_baselines_{T1_T2,T2_T1}_self/per_slice.csv
      —— 自训模型 8 方法 × 60 片（8 被试）：配对 ΔAUROC / Δdpsnr20 CI
-  2) results/2026-11-03_uq_baselines_{T1_T2,T2_T1}/per_slice.csv
+  2) results/<date>_uq_baselines_T2_T1_official/per_slice.csv
      —— 官方权重 8 方法：官方 T2→T1 各信号 CI 对照 0.5
-  3) results/2026-11-03_tumor_sparsify_body/per_slice.csv —— 肿瘤 low-trust AUROC 患者 CI
-  4) results/2026-11-04_crossinst_brats/per_case.csv —— 跨机构两组患者 CI
+  3) results/<date>_tumor_sparsify_body/per_slice.csv —— 肿瘤 low-trust AUROC 患者 CI
+  4) results/<date>_crossinst_brats/per_case.csv —— 跨机构两组患者 CI
   5) results/maps_full/synthrad_*/derived.json —— SynthRAD（患者数受限，如实报告）
 
 输出: results/<date>_patient_stats/summary.json + forest 数据 CSV
@@ -82,21 +82,21 @@ def main():
 
     # ---- 1) 自训模型：配对差（融合 vs 仅集成 / CReF-N1 / TTA / 噪声）----
     for task, tag in (("T1->T2", "T1_T2"), ("T2->T1", "T2_T1")):
-        p = os.path.join(R, f"2026-11-04_uq_baselines_{tag}", "per_slice.csv")
+        p = os.path.join(R, f"2026-11-12_uq_baselines_{tag}_self", "per_slice.csv")
         base = load_group(p, "ours_fused")
         for cfg in ("ours_unc_n4", "ours_rcrf_n1", "tta_disp", "noise_disp"):
             other = load_group(p, cfg)
             out[f"self_{tag}:fused_vs_{cfg}"] = paired_bootstrap(base, other)
 
     # ---- 2) 官方权重：T2→T1 各信号 vs 0.5（"全盲"主张的 CI 化）----
-    p = os.path.join(R, "2026-11-03_uq_baselines_T2_T1", "per_slice.csv")
+    p = os.path.join(R, "2026-11-12_uq_baselines_T2_T1_official", "per_slice.csv")
     for cfg in ("ours_fused", "ours_unc_n4", "ours_rcrf_n1", "tta_disp", "noise_disp"):
         d = load_group(p, cfg)
         vals = [np.mean(v) for v in d.values()]
         out[f"official_T2T1:{cfg}_vs_chance"] = one_sided_vs_chance(vals)
 
     # ---- 3) 肿瘤 low-trust AUROC 患者 CI ----
-    p = os.path.join(R, "2026-11-03_tumor_sparsify_body", "per_slice.csv")
+    p = os.path.join(R, "2026-11-12_tumor_sparsify_body", "per_slice.csv")
     rows = list(csv.DictReader(open(p, encoding="utf-8")))
     bypat = {}
     for r in rows:
@@ -104,7 +104,7 @@ def main():
     out["tumor_lowtrust_vs_0.5"] = one_sided_vs_chance([np.mean(v) for v in bypat.values()])
 
     # ---- 4) 跨机构两组患者 CI ----
-    p = os.path.join(R, "2026-11-04_crossinst_brats", "per_case.csv")
+    p = os.path.join(R, "2026-11-12_crossinst_brats", "per_case.csv")
     rows = list(csv.DictReader(open(p, encoding="utf-8")))
     for set_name in ("B_same_collection_heldout", "C_cross_institution_cbica"):
         bypat = {}

@@ -28,7 +28,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from trustbridge.engine import BridgeEngine, TASKS  # noqa: E402
-from trustbridge.pipeline import translate_single  # noqa: E402
+from trustbridge.pipeline import translate_single, get_sampler  # noqa: E402
+from trustbridge.sampler import _pct_norm  # noqa: E402
 from trustbridge.metrics import mean_norm  # noqa: E402
 from trustbridge.sampler import _pct_norm  # noqa: E402
 
@@ -84,20 +85,24 @@ def cmd_collapse(args):
             mask = src > 0.02
             o = translate_single(eng, src, n_ensemble=4, step_skip=1, seed=args.seed)
             res, pred = o["result"], o["pred01"]
-            tr = res.trust_map
+            # 论文口径融合（CReF 0.6 / 集成 0.4）：原始图单次 p99 归一化
+            smp = get_sampler(eng)
+            R_n = _pct_norm(smp.rcrf_raw_map)
+            U_n = _pct_norm(smp.unc_raw_map)
+            tr = np.clip(1 - 0.6 * R_n - 0.4 * U_n, 0, 1)
             if tr.shape != src.shape:
                 S = tr.shape[0]; H, W = src.shape
                 pt, pl = (S - H) // 2, (S - W) // 2
                 tr = np.ascontiguousarray(tr[pt:pt + H, pl:pl + W])
-                pred = np.ascontiguousarray(pred[pt:pt + H, pl:pl + W])
             err = np.abs(gt - pred)
+            score = float(tr[mask].mean() * 100.0)
             out.append({
                 "model": label, "subject": r["subject"], "z": r["z"],
                 "body_psnr": round(body_psnr(gt, pred, mask), 2),
-                "lowtrust_ratio_pct": round(float(res.lowtrust_ratio), 2),
-                "trust_score": round(float(res.trust_score), 1),
-                "auroc": round(auroc_low_vs_higherr(tr, err), 4),
-                "qc_flag": res.qc_flag,
+                "lowtrust_ratio_pct": round(float((tr[mask] < 0.6).mean() * 100.0), 2),
+                "trust_score": round(score, 1),
+                "auroc": round(auroc_low_vs_higherr(tr[mask], err[mask]), 4),
+                "qc_flag": "PASS" if score >= 75 else ("REVIEW" if score >= 55 else "REJECT"),
             })
             if (i + 1) % 5 == 0:
                 print(f"  [{label} {i+1}/{len(rows)}]", flush=True)
