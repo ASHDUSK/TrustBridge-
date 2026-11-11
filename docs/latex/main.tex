@@ -393,12 +393,12 @@ equal-budget baselines; CReF/ensemble/fused=ours.}
 Signal & AUROC & $\Delta$PSNR@20\% & Sep & AUROC & $\Delta$PSNR@20\% & Sep \\
 \midrule
 Random (control) & 0.498 & $\approx$0 & 1.0 & 0.501 & $\approx$0 & 1.0 \\
-Gradient & 0.225 & $-0.45$ & 0.54 & 0.475 & $-0.55$ & 0.51 \\
-Input-noise dispersion & 0.861 & $+1.47$ & 65 & 0.739 & $+0.97$ & 3.0 \\
-TTA dispersion & 0.820 & $+1.33$ & 6.3 & 0.711 & $+0.79$ & 1.9 \\
-CReF only (N=1, free) & 0.880 & $+2.28$ & 103 & 0.792 & $+1.51$ & 2.8 \\
-Ensemble only (N=4) & 0.897 & $+2.34$ & 159 & 0.806 & $+1.63$ & 3.8 \\
-\textbf{Fused (ours)} & \textbf{0.900} & $\mathbf{+2.67}$ & \textbf{182} & \textbf{0.816} & $\mathbf{+1.85}$ & \textbf{3.7} \\
+Gradient & 0.225 & $-0.45$ & 0.54 & 0.368 & $-0.55$ & 0.51 \\
+Input-noise dispersion & 0.745 & $+1.47$ & 65 & 0.662 & $+0.97$ & 3.0 \\
+TTA dispersion & 0.690 & $+1.33$ & 6.3 & 0.640 & $+0.79$ & 1.9 \\
+CReF only (N=1, no extra) & 0.787 & $+2.28$ & 103 & 0.705 & $+1.51$ & 2.8 \\
+Ensemble only (N=4) & 0.813 & $+2.34$ & 159 & 0.741 & $+1.63$ & 3.8 \\
+\textbf{Fused (ours)} & \textbf{0.823} & $\mathbf{+2.67}$ & \textbf{194} & \textbf{0.757} & $\mathbf{+1.85}$ & \textbf{4.0} \\
 \midrule
 \multicolumn{7}{l}{\emph{Same protocol on the official weights (N=4 fused):}} \\
 Fused (official) & 0.783 & $+0.37$ & -- & 0.465 & $+0.21$ & -- \\
@@ -409,14 +409,14 @@ All signals (official, T2$\to$T1) & -- & -- & -- & \multicolumn{3}{l}{$0.465$--$
 \end{table}
 
 Table~\ref{tab:uq} carries two messages. \textbf{On self-trained models},
-the fused signal achieves AUROC $0.900$/$0.816$ (T1$\to$T2/T2$\to$T1)
+the fused signal achieves AUROC $0.823$/$0.757$ (T1$\to$T2/T2$\to$T1)
 with $+2.67$/$+1.85$\,dB sparsification gains. Paired subject-level bootstrap
 ($B{=}5000$, 8 subjects) shows: fused vs.\ ensemble alone $\Delta$AUROC
 $+0.004$ (95\% CI $[-0.001, 0.008]$, \emph{includes zero} --- not significant
 on T1$\to$T2) and $+0.010$ (CI $[0.005, 0.015]$, significant on T2$\to$T1);
 fused vs.\ all equal-budget baselines is significant with large margins
 (TTA $-0.082$/$-0.107$, noise $-0.041$/$-0.078$, gradient). A single CReF
-chain (zero extra cost) reaches $0.880$/$0.792$ --- most of the value at a
+chain (zero extra cost) reaches $0.787$/$0.705$ --- most of the value at a
 quarter of the budget; CReF's claim is cost, not accuracy over the ensemble.
 \textbf{On the official weights}, the ranking changes and the
 T2$\to$T1 direction collapses entirely: every dispersion signal---ours and
@@ -429,7 +429,7 @@ pair, not of the signals, which is why we recommend validating uncertainty
 signals per (model, direction) before any deployment (\S\ref{sec:discussion}).
 A CReF-triggered routing scheme (uncertain regions re-examined by TTA) was
 tested to recover full-budget TTA quality at lower cost; on the self-trained
-model the curve is flat---pure CReF ($0.880$ at budget 10) already dominates
+model the curve is flat---pure CReF ($0.787$ at budget 10) already dominates
 full TTA ($0.820$)---so routing adds nothing there, a further
 confirmation that which signal wins is model-dependent.
 Figure~\ref{fig:case} shows the per-slice six-panel visualization: the spatial
@@ -509,10 +509,10 @@ raw PSNR ($-0.8$/$-0.9$\,dB) because the per-slice intensity offset is not
 predictable without ground truth; and (6)~\emph{T2$\to$T1 signal failure on the official weights}
 (\S\ref{sec:exp-uq}): all dispersion signals at chance when that model's
 residual error is texture-dominated---while the same direction works on our
-self-trained model ($0.816$), isolating the failure to the model, not the task; and (7)~\emph{semantic-proxy signals do not complement dispersion}:
+self-trained model ($0.757$), isolating the failure to the model, not the task; and (7)~\emph{semantic-proxy signals do not complement dispersion}:
 block-wise normalized mutual information and gradient-orientation
 agreement between source and synthesis reach only AUROC
-$0.42$--$0.67$ where dispersion reaches $0.82$--$0.90$, and their
+$0.42$--$0.67$ where dispersion reaches $0.76$--$0.82$, and their
 combination with dispersion does not improve it---structural
 agreement with the \emph{source} is a weaker error surrogate than
 sampler-native dispersion. These results are reported in full as negative findings:
@@ -652,7 +652,7 @@ planned: body-masked metrics, equal-budget dispersion baselines, and
 per-cohort operating-point analysis. What survives is a clear, bounded
 picture: on models whose errors are spatially structured (self-trained
 T1$\to$T2/T2$\to$T1; official weights on tumor patients), the training-free signals localize unreliable
-regions well (AUROC $0.82$--$0.95$) and CReF supplies most of that value at
+regions well (AUROC $0.76$--$0.95$) and CReF supplies most of that value at
 zero cost; on texture-dominated error the signals---and every baseline we
 tried---are blind. The broader messages are methodological: generative
 samplers compute more evidence than they use, and harvesting it converts a

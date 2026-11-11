@@ -76,7 +76,7 @@ def load_ixi(split, direction, n):
     return items
 
 
-def load_synthrad(direction, ckpt_key):
+def load_synthrad(direction):
     mf = ("manifest_ct_a.csv" if direction == "t1ct" else "manifest_ct_c.csv")
     rows = list(csv.DictReader(open(os.path.join(ROOT, "data", "synthrad_slices_128",
                                                 mf), encoding="utf-8")))

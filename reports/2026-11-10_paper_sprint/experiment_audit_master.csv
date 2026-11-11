@@ -1,0 +1,19 @@
+指标,论文位置,结果文件,生成脚本,口径,患者数,可信度,需重算
+融合AUROC 0.900/0.816,Tab.2 §4.4,2026-11-04_uq_baselines_*/summary.json,eval_uq_baselines.py,全图(修复后=体区),8,B,是(mask修复后已有新值0.823/0.757)
+CReF单链 0.787/0.705,Tab.2 §4.4,maps_full/ixi_test_*/derived.json,eval_derive.py,体区(mask已应用),8,A,否
+AUPRC 0.323/0.259,maps_full/ixi_test_*/derived.json,eval_derive.py,体区(mask已应用),8,A,否
+AUSE 0.014/0.031,同上,eval_derive.py,体区,8,A,否
+CReF-U ρ 0.721/0.354,同上,eval_derive.py,pooled pixel,8,A,否(需补患者级)
+肿瘤定位 0.911,§4.8,2026-11-03_tumor_sparsify_body/,eval_tumor_sparsify.py,全图(声称体区),6,B,是(mask修复)
+肿瘤撤回 0.51,§4.8,2026-10-31_tumor_trust_corrected/,eval_tumor_corrected.py,体区,6,A,否
+跨机构 B 0.863,§4.8,2026-11-04_crossinst_brats/,eval_crossinst_brats.py,全图(声称体区),14,B,是(mask修复)
+跨机构 C 0.950,§4.8,同上,同上,全图(声称体区),21,B,是(mask修复)
+退化响应 trust,§4.9,2026-11-03+09_degradation_response/,eval_degradation.py,体区(部分),30,B,是(权重修复)
+崩塌甄别 PASS 94.2,§4.2,2026-11-04_collapse_alarm/,eval_paper_extras.py collapse,全图 trust,20,B,否(trust非AUROC)
+崩塌 NCC 0.41,§4.2,2026-11-04_collapse_ncc/,eval_collapse_ncc.py,体区,20,A,否
+门控 0/562,§3.5,2026-11-01_gate_v2/,train_gate_v2.py eval,输入级,N/A,A,否
+患者级CI 全部,§4.4,2026-11-09_patient_stats/,eval_patient_stats.py,患者级bootstrap,8,A,否(继承上游口径)
+Routing 0.880>0.820,§4.4,2026-11-04_routing_cref_tta/,eval_paper_extras.py routing,体区,30,A,否
+体区十分箱 193.9×/4.0×,§4.5,2026-11-08_body_decile/,eval_body_decile.py,体区,8,A,否(需注意sampler权重0.4/0.6)
+K消融 0.811-0.818,§4.5,maps_full/ixi_test_*/derived.json,eval_derive.py,体区,8,A,否(K方向已修)
+权重扫描 0.787-0.802,§3.4,maps_full/ixi_val_*/derived.json,eval_derive.py --w,体区,6,A,否
