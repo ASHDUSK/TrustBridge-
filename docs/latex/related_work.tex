@@ -24,7 +24,7 @@ spanning the design space. SelfRDB~\cite{arslan2025selfrdb} combines a soft-prio
 bridge with self-consistent recursive sampling and reports state-of-the-art
 multi-contrast translation, while explicitly leaving \emph{uncertainty
 quantification} of the bridge as an open problem. Our work builds directly on
-this sampler: we keep the model frozen and harvest two signals that SelfRDB
+this sampler: we keep the model frozen and extract two signals that SelfRDB
 discards.
 
 \subsection{Uncertainty Quantification in Medical Imaging}
@@ -83,8 +83,8 @@ sampler-native evidence and are discussed as future work in \S6.
 \begin{table}[h]
 \centering\small
 \caption{Uncertainty/hallucination assessment methods ("extra forwards" counts
-generator calls beyond a single base inference). The "no extra" entry of
-The "no extra" entry refers to the single-chain CReF signal (10 generator
+generator calls beyond a single base inference). The "no extra" entry refers
+to the single-chain CReF signal (10 generator
 calls) and is specific to the current SelfRDB implementation --- its recursion
 structure does not exist in vanilla DDPMs; the full fusion (CReF + $N{=}4$
 ensemble) costs 40 generator calls, the same order as the multi-forward
