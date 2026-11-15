@@ -22,7 +22,7 @@ pix2pix~\cite{isola2017pix2pix} 确立了非配对与配对两种范式，随后
 扩散模型语境下，集成式不确定性已用于分割~\cite{wolleb2022diffusionensembles} 与
 显微图像复原~\cite{osuna2024microscopy}：对同一输入采样多条链，以链间分歧度量困难区域。
 本文继承该思路但有三点不同：(i) 我们的集成成员来自扩散桥自身原生的随机终点与隐变量，
-无需注入额外随机性；(ii) 我们配对了一个与采样方差正交的免费信号——CReF，
+无需注入额外随机性；(ii) 我们配对了一个不同于跨链采样方差、直接来源于递归收敛过程的免费信号——CReF，
 它只存在于自洽递归采样器中；(iii) 我们将信号与临床 QC 场景对接，但图像级聚合被证明不可靠（\S4.6），本文定位为像素级排序工具。
 值得注意的是，部分桥模型将这种随机性当作缺陷主动抑制~\cite{song2024ccbm}；
 本文论证：在可信度评估的任务里，它是资产。
@@ -52,7 +52,7 @@ CRAFT~\cite{chung2026craft} 用基础模型的临床对齐分数（CAS）按临�
 \begin{table}[h]
 \centering\small
 \caption{不确定性/幻觉评估方法对照（"额外前向"指相对单次基础推理的生成器前传次数）。
-TrustBridge 一行的"无额外前传"限定于当前 SelfRDB 实现——其递归结构为常规 DDPM 所无。}
+TrustBridge 的"无额外前传"仅指 CReF 单链信号（10 次前传）且限定于当前 SelfRDB 实现——其递归结构为常规 DDPM 所无；完整融合（CReF + $N{=}4$ 集成）需 40 次生成器前传，与各多次前向方法同量级。}
 \label{tab:rw}
 \begin{tabular}{lcccc}
 \toprule
@@ -63,7 +63,8 @@ MC-Dropout~\cite{gal2016mcdropout} & 需（启用 dropout 重训） & 否 & 多�
 TTA~\cite{ayhan2018tta} & 否 & 否 & 多次 & 像素/图像 \\
 扩散集成~\cite{wolleb2022diffusionensembles,osuna2024microscopy} & 否（复用模型） & 否 & 多次 & 像素/图像 \\
 Hallucination Index~\cite{tivnan2024hallucinationindex} & 视实现 & 视实现 & 多次 & 图像级 \\
-TrustBridge（本文） & 否 & 否 & \textbf{无额外}（单链） & 像素级 \\
+TrustBridge-CReF（单链） & 否 & 否 & \textbf{无额外}（10 次前传） & 像素级 \\
+TrustBridge-Fusion（$N{=}4$） & 否 & 否 & 40 次前传 & 像素级 \\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -38,8 +38,8 @@ Convergence Residual Fields)}
 \maketitle
 
 \begin{abstract}
-Two pitfalls quietly corrupt most uncertainty-quantification (UQ) claims made
-for generative medical image translation. First, \emph{background air pixels}:
+Two silent pitfalls can systematically bias most uncertainty-quantification
+(UQ) claims made for generative medical image translation. First, \emph{background air pixels}:
 they are trusted and near-zero-error, so pooling them with body pixels
 inflates whole-image UQ metrics severalfold---we show a headline localization
 score of $0.90$ collapsing to $0.62$ under a within-body protocol, and retract
@@ -64,7 +64,8 @@ explains why officially released weights collapse to ${\sim}15$\,dB on
 independently prepared data (paper value 31.56\,dB)---structurally, not
 just photometrically (NCC 0.41)---and shows that the trust layer
 \emph{barely notices}: the collapsed model still scores $62/100$---below
-the healthy model's $82$, yet only REVIEW, never REJECT, and its pixel-level
+the healthy model's $82$---its mean score sits in the REVIEW band (per-slice:
+0 PASS / 18 REVIEW / 2 REJECT)---and its pixel-level
 AUROC degrades to $0.61$ (healthy $0.82$); the originally reported blanket PASS
 ($94/100$, whole-image mean) was itself an air-pooling artifact. Self-consistency cannot certify correctness; external
 validation remains irreplaceable. We release all negative
@@ -93,7 +94,7 @@ Trust, however, has not kept pace with fidelity. Because translation is
 ill-posed, generative models can \emph{hallucinate}: synthesize plausible
 structure that is absent from the underlying anatomy. In clinical use, a
 radiologist cannot distinguish such fabrication from faithful synthesis, and
-this trust bottleneck---not image quality---is the primary obstacle to
+this trust bottleneck---not image quality---may be a primary obstacle to
 deployment. The SelfRDB authors state this gap explicitly: the uncertainty of
 diffusion bridges ``is warranted to [be] evaluate[d]'' in future work
 \cite{arslan2025selfrdb}.
@@ -112,8 +113,8 @@ three properties that distinguish it from prior uncertainty machinery:
 (i) \emph{training-free}---no model change, no labels, no extra network;
 (ii) \emph{sampler-native}---signals are extracted from quantities the sampler
 already computes; and (iii) \emph{pixel-level}---unlike image-level
-hallucination metrics~\cite{tivnan2024hallucinationindex}, the output supports
-a radiologist's local reading.
+hallucination metrics~\cite{tivnan2024hallucinationindex}, the output is
+intended to provide candidate-region evidence for local human review.
 
 A further contribution is methodological. In the course of validation we found
 that \emph{background air pixels silently inflate whole-image trust metrics}:
@@ -189,14 +190,17 @@ early stopping, the residual just before stopping), and $\tilde x_0^{(0)}\equiv 
 the denominator is the fixed $K_0 N$ --- with step skipping the captured set can
 be smaller than $K_0$, and this discrepancy is kept as-is rather than absorbed
 into the denominator (the formula matches the code pixel-for-pixel, verified by
-a hand calculation on a $4\times4$ input). Intuition: pixels the generator keeps
+a hand calculation on a $4\times4$ input). The percentile statistics are
+computed per slice over the whole map (background included), once for the CReF
+map and once for $U$; uncaptured steps contribute no residual, so CReF values
+are not comparable across maps with different capture configurations. Intuition: pixels the generator keeps
 revisiting without converging are those where its learned prior provides
 insufficient evidence --- prime candidates for hallucinated content. We position
 it precisely as \emph{a proxy of sampler-internal convergence instability}:
 non-convergence can also stem from numerical iteration or texture sensitivity
 and is not strictly epistemic uncertainty~\cite{kendall2017uncertainties}. The
-signal requires no extra generator forwards (the recursion runs anyway; caching
-and normalization overheads are tabulated in the cost table).
+signal requires no extra generator forwards (the recursion runs anyway), though
+residual caching, storage and normalization remain implementation overheads.
 Figure~\ref{fig:overview} relates both signals to the sampling chain.
 
 \begin{figure}[t]
@@ -265,8 +269,9 @@ from it are reported as sensitivity analyses (\S\ref{sec:exp-uq},
 \S\ref{sec:exp-synthrad}).
 \begin{table}[t]
 \centering\small
-\caption{Implementation and analysis configuration (one configuration for
-all experiments; inference seed 2026 throughout).}
+\caption{Implementation and analysis configuration (default settings for the
+main experiments; inference seed 2026 throughout. Deviations --- cross-model
+resolutions, stress tests, $K_0$ sensitivity --- are stated in their sections.)}
 \label{tab:impl}
 \begin{tabular}{p{0.24\linewidth}p{0.68\linewidth}}
 \toprule
@@ -314,7 +319,11 @@ data\_range = masked normalized GT maximum). The decile separation Sep is a
 ratio and ΔMAE its absolute-difference counterpart --- when the denominator
 approaches zero, Sep is an order-of-magnitude statement only (\S4.5). AUSE is
 the per-slice macro-averaged integral of the model-minus-oracle risk--coverage
-difference.
+difference. Throughout, $\pm$ denotes the slice-level standard deviation across
+evaluated slices; patient-level uncertainty is reported separately as
+paired-bootstrap CIs ($B{=}5000$, patients as resampling units,
+\S\ref{sec:exp-uq}). Cohort sizes: BraTS 6 patients, SynthRAD 2/1 patients ---
+slice counts must not be read as independent biological samples.
 \paragraph{Ethics.}
 All three datasets are public research datasets; all processing is local; no
 output is used for clinical decisions.
@@ -345,7 +354,8 @@ $82.4$ for the healthy self-trained model, the low-trust ratio rises to
 $41.6\%$ (healthy: $13.7\%$), and pixel-level within-body AUROC degrades to
 $0.61\pm0.03$ (healthy: $0.82$)---the signals move in the right
 direction, but nowhere near far enough: the structurally wrong model still
-lands in REVIEW (0 PASS / 18 REVIEW / 2 REJECT), never REJECT, and the originally reported blanket PASS
+lands in the REVIEW band (per-slice: 0 PASS / 18 REVIEW / 2 REJECT) and cannot
+reliably be rejected on this basis; the originally reported blanket PASS
 ($94/100$, a whole-image mean) was itself inflated by trusted air. And the
 collapse is \emph{not} a benign photometric offset: within-body NCC is
 $0.41$, SSIM $29\%$, and a ground-truth-fitted linear intensity correction
@@ -540,7 +550,10 @@ a \emph{ranking within the body}, not an absolute error magnitude
 are near-monotone; the within-body separation is far smaller than the
 whole-image number (the retracted 35--73$\times$ was dominated by air/body
 contrast and is not used as a method metric). The top three bins carry
-near-zero error, where Spearman is insensitive.}
+near-zero error, where Spearman is insensitive. The in-figure annotations
+(196.9$\times$/3.8$\times$) are ratios of cross-slice median per-bin errors,
+whereas Table~\ref{tab:uq} reports the median of per-slice bin-ratios
+(182$\times$/3.7$\times$) --- different aggregations of the same data.}
 \label{fig:decile}
 \end{figure}
 
@@ -562,7 +575,8 @@ enriched for quality problems but coverage--precision trade-offs are steep
 (the best pooled cut, $<$55, buys 100\% precision at
 0.6\% coverage for the bottom-quality quartile). We therefore draw a stronger conclusion than ``the thresholds need
 re-tuning'': \emph{global scalar trust scores should not be used as QC
-gates for medical image translation at all}. Slices differ so much in
+gates for medical image translation} (on the current cohorts and operating
+points). Slices differ so much in
 anatomy that no single body-mean score can separate good from bad
 across a cohort. We recommend the community standardize on
 pixel-/region-level trust evidence (the trust map, low-trust region
@@ -687,7 +701,12 @@ The stronger test of sampler-native trust is not a new institution but a
 new anatomy and a new target modality. We run the identical frozen pipeline
 on the self-trained pelvis bridges (T1w$\to$CT: 160 slices, 2 patients;
 T2w$\to$CT: 80 slices, 1 patient; all prepared SynthRAD slices, including
-the designated validation split, with no configuration re-tuned).
+the designated validation split, with no configuration re-tuned). Evaluated
+patients are fully disjoint from training patients (T1w$\to$CT: 5 training
+patients vs.\ 1PA148/1PA173; T2w$\to$CT: 1PC069); no tuning occurred, so the
+validation split does not constitute selection leakage (the training-side
+center-C val split shares patients with training --- a training-pipeline
+matter, documented separately).
 Slice-level results: T1w$\to$CT reaches within-body AUROC $0.666\pm0.061$
 with AUPRC $0.285\pm0.078$ (positive rate $0.10$), median decile separation
 $1.39$, and AUSE $0.037$ --- degraded relative to brain but still
@@ -773,8 +792,8 @@ regions well (AUROC $0.62$--$0.83$) and CReF supplies most of that value at
 zero cost; on texture-dominated error the signals---and every baseline we
 tried---retain at most weak information (best: TTA,
 $0.63$), none usable. The broader messages are methodological: generative
-samplers compute more evidence than they use, and harvesting it converts a
-synthesis engine into a trust-assessable system; but uncertainty claims in
+samplers compute more evidence than they use, and harvesting it provides spatial
+risk-ranking evidence for the synthesis output; but uncertainty claims in
 image translation must be evaluated within the body and against cheap
 baselines, or they will be overstated. Future work will test whether learnable aggregation can be reopened at
 larger subject scale, extend the analysis to 256$\times$256 models, and

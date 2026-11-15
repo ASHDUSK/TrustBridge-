@@ -84,8 +84,11 @@ sampler-native evidence and are discussed as future work in \S6.
 \centering\small
 \caption{Uncertainty/hallucination assessment methods ("extra forwards" counts
 generator calls beyond a single base inference). The "no extra" entry of
-TrustBridge is specific to the current SelfRDB implementation --- its
-recursion structure does not exist in vanilla DDPMs.}
+The "no extra" entry refers to the single-chain CReF signal (10 generator
+calls) and is specific to the current SelfRDB implementation --- its recursion
+structure does not exist in vanilla DDPMs; the full fusion (CReF + $N{=}4$
+ensemble) costs 40 generator calls, the same order as the multi-forward
+methods.}
 \label{tab:rw}
 \begin{tabular}{lcccc}
 \toprule
@@ -96,7 +99,8 @@ Deep ensembles~\cite{lakshminarayanan2017ensembles} & yes (multiple models) & ye
 TTA~\cite{ayhan2018tta} & no & no & multiple & pixel/image \\
 Diffusion ensembles~\cite{wolleb2022diffusionensembles,osuna2024microscopy} & no (reuse) & no & multiple & pixel/image \\
 Hallucination Index~\cite{tivnan2024hallucinationindex} & depends & depends & multiple & image-level \\
-TrustBridge (ours) & no & no & \textbf{none} (single chain) & pixel-level \\
+TrustBridge-CReF (single chain) & no & no & \textbf{none} (10 calls) & pixel-level \\
+TrustBridge-Fusion ($N{=}4$) & no & no & 40 calls & pixel-level \\
 \bottomrule
 \end{tabular}
 \end{table}

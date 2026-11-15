@@ -60,29 +60,31 @@ class Converter:
 
 
 def _cmds(c, s):
-    # 数学保护：$...$ 区间内不做任何文本替换（交给 KaTeX 原样渲染），
-    # 命令替换只作用于非数学区间
-    parts = re.split(r"(\$[^$]*\$)", s)
-    for i, p in enumerate(parts):
-        if i % 2 == 1:
-            continue  # math span: untouched
-        p = re.sub(r"\\emph\{([^{}]*)\}", r"<em>\1</em>", p)
-        p = re.sub(r"\\textbf\{([^{}]*)\}", r"<b>\1</b>", p)
-        p = re.sub(r"\\texttt\{([^{}]*)\}", r"<code>\1</code>", p)
-        p = re.sub(r"\\url\{([^{}]*)\}", r'<a href="\1">\1</a>', p)
-        p = p.replace("\\TrustMap", "信任图" if getattr(c, "zh", False) else "trust map")
-        p = p.replace("\\TrustScore", "Trust Score")
-        p = p.replace("\\cref", "Convergence Residual Field (CReF)")
-        p = p.replace("---", "—").replace("--", "–")
-        p = p.replace("``", "“").replace("''", "”")
-        p = p.replace("\\%", "%").replace("\\ ", " ").replace("vs\\.", "vs.")
-        p = p.replace("\\S", "§").replace("\\,", " ").replace("~", " ")
-        p = p.replace("\\\\", "<br>")
-        p = re.sub(r"\\item\s*", "", p)
-        p = re.sub(r"\{\}?", "", p)
-        p = re.sub(r"\\(emph|textbf|texttt|url|large|small|centering)\b", "", p)
-        parts[i] = p
-    return "".join(parts)
+    # 数学保护（占位符版）：先把 $...$ 区间换为占位符，使命令替换可跨数学区间
+    # 匹配（修复 \emph{...$x$...} 被切断的渲染 bug），最后原样还原数学区间。
+    math_spans = []
+    def _stash(m):
+        math_spans.append(m.group(0))
+        return "\x00M%d\x00" % (len(math_spans) - 1)
+    s = re.sub(r"\$[^$]*\$", _stash, s)
+    s = re.sub(r"\\emph\{([^{}]*)\}", r"<em>\1</em>", s)
+    s = re.sub(r"\\textbf\{([^{}]*)\}", r"<b>\1</b>", s)
+    s = re.sub(r"\\texttt\{([^{}]*)\}", r"<code>\1</code>", s)
+    s = re.sub(r"\\url\{([^{}]*)\}", r'<a href="\1">\1</a>', s)
+    s = s.replace("\\TrustMap", "信任图" if getattr(c, "zh", False) else "trust map")
+    s = s.replace("\\TrustScore", "Trust Score")
+    s = s.replace("\\cref", "Convergence Residual Field (CReF)")
+    s = s.replace("---", "—").replace("--", "–")
+    s = s.replace("``", "“").replace("''", "”")
+    s = s.replace("\\%", "%").replace("\\ ", " ").replace("vs\\.", "vs.")
+    s = s.replace("\\S", "§").replace("\\,", " ").replace("~", " ")
+    s = s.replace("\\\\", "<br>")
+    s = re.sub(r"\\item\s*", "", s)
+    s = re.sub(r"\{\}?", "", s)
+    s = re.sub(r"\\(emph|textbf|texttt|url|large|small|centering)\b", "", s)
+    s = re.sub(r"\x00M(\d+)\x00",
+               lambda m: math_spans[int(m.group(1))], s)
+    return s
 
 
 def _flush(c, t):
@@ -263,6 +265,15 @@ def ref_html(latex_dir, cite_order):
         seg = f"{a}{etal} ({year}). {title}{dot}"
         if venue:
             seg += f" <i>{venue}</i>."
+        vol = _bib_field(body, "volume")
+        pgs = _bib_field(body, "pages")
+        doi = _bib_field(body, "doi")
+        if vol:
+            seg += f" {vol}"
+        if pgs:
+            seg += f": {pgs}"
+        if doi:
+            seg += f". doi:{doi}"
         out.append(f"<li>{seg}</li>")
     return "<ol class=\"refs\">" + "".join(out) + "</ol>"
 
