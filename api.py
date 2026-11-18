@@ -1,6 +1,6 @@
 """TrustBridge 评估微服务（FastAPI）——把应用能力以 API 形式开放给 HIS/PACS 集成方。
 
-启动: uvicorn api:app --host 127.0.0.1 --port 8000（在 D:\MedTranslateProject 下）
+启动: uvicorn api:app --host 127.0.0.1 --port 8000（仓库根目录下运行）
 文档: http://127.0.0.1:8000/docs
 
 POST /evaluate   上传一张切片（PNG/JPG/NIfTI/DICOM）→ 翻译 + 质控

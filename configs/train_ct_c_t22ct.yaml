@@ -78,7 +78,7 @@ data:
   train_batch_size: 8
   val_batch_size: 8
   test_batch_size: 8
-  dataset_dir: D:/MedTranslateProject/data/ct_c_format
+  dataset_dir: data/ct_c_format   # 指向按 prepare_ct_train.py 制备的数据目录（绝对路径亦可）
   source_modality: T2
   target_modality: CT
   dataset_class: NumpyDataset

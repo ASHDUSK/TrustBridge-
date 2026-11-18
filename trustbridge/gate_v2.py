@@ -10,7 +10,7 @@ v1（gate.py）只能判 T1/T2 二分类；v2 扩展为 6 类
   OOD      → 硬拒绝（不合成、不出评分）——防止对域外输入伪造信任评分；
   MISMATCH → 脑任务硬拒绝（验证矩阵 0% 误拦）；
              CT 任务降级为警示放行（未见患者 T1w 有 52.5% 被误判为脑类，
-             硬拒绝会拦掉一半合法输入——见 docs/16 门控 v2 验证矩阵）；
+             硬拒绝会拦掉一半合法输入——见 docs/gate_v2_validation.md）；
   MATCH    → 放行。
 
 模型系数在 trustbridge/modality_gate_v2.npz，训练/验证脚本 scripts/train_gate_v2.py。

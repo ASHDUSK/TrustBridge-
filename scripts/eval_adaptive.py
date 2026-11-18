@@ -5,7 +5,7 @@
   B. adaptive 2+2       n_base=2 + 低信任块追加 m_extra=2（总预算 ≤4，与 A 对齐）
   C. uniform N=2        一半预算参考（同 base 成本）
 
-验收（docs/07 改进路线图）：同预算 PSNR +0.3dB 或 同质量耗时 −30%。
+验收标准：同预算 PSNR +0.3dB 或 同质量耗时 −30%。
 输出: results/<date>_ixi_adaptive/{config.json,per_slice.csv,summary.json,figures/*.png}
 用法: python scripts/eval_adaptive.py [--n 60] [--smoke]
 """

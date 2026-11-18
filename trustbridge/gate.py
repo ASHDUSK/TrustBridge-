@@ -23,7 +23,7 @@ if not os.path.exists(DEFAULT_GATE):
 GATE_PELVIS = os.path.join(ROOT, "data", "modality_gate_pelvis.npz")
 
 # 任务族 → 门控文件（脑任务用脑门控；盆腔 CT 任务用盆腔门控）
-# 注意：盆腔门控在脑→盆腔跨域泛化验证中失败（见 docs/12 表6），
+# 注意：盆腔门控在脑→盆腔跨域泛化验证中误拦率过高，故未随包分发，
 # 且 modality_gate_pelvis.npz 未随包分发 → check() 会因文件缺失自动跳过，不会崩溃。
 GATE_FOR_TASK = {
     "CT_T1->CT": GATE_PELVIS,

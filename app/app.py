@@ -149,7 +149,7 @@ def run_single(file, task_id, preset, low_thresh, gt_file, seed, slice_k, progre
 
     # 输入门控 v2：6 类模态/解剖分类 + OOD 拒判（trustbridge/gate_v2.py）
     # 策略：OOD → 硬拒绝（不合成、不出评分）；MISMATCH → 脑任务硬拒绝 /
-    # CT 任务警示放行（未见患者 T1w 误判率高，见 docs/16 验证矩阵）
+    # CT 任务警示放行（未见患者 T1w 误判率高，见 docs/gate_v2_validation.md）
     from trustbridge.gate_v2 import gate_decision
     gd = gate_decision(img, task_id, src_mod)
     if gd["action"] == "block":
@@ -862,7 +862,7 @@ def build_ui():
             with gr.Row():
                 with gr.Column(scale=5):
                     bdir = gr.Textbox(label="影像文件夹路径（本机路径，如 D:\\data\\slices）",
-                                      placeholder=r"D:\MedTranslateProject\app\examples")
+                                      placeholder="app/examples（仓库自带示例切片目录）")
                     bfiles = gr.File(label="或直接上传多个文件（可不填路径）",
                                      file_count="multiple",
                                      file_types=["image", ".nii", ".gz", ".dcm"])

@@ -2,8 +2,8 @@
 # 构建: docker build -t trustbridge .
 # 运行: docker run --gpus all -p 7860:7860 -p 8000:8000 trustbridge
 # 说明: 需要宿主机 NVIDIA Container Toolkit；权重与数据通过 -v 挂载：
-#   -v D:\MedTranslateProject\checkpoints:/app/checkpoints
-#   -v D:\MedTranslateProject\data:/app/data
+#   -v <host-path>/checkpoints:/app/checkpoints
+#   -v <host-path>/data:/app/data
 FROM pytorch/pytorch:2.1.2-cuda11.8-cudnn8-runtime
 
 WORKDIR /app
